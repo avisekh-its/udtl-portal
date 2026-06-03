@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+/* Brand tokens — placeholder values until UDTL delivers branding (FRD §17 item 6). */
+@theme {
+  --color-bg: #ffffff;
+  --color-text: #0f172a;
+  --color-muted: #64748b;
+  --color-border: #e2e8f0;
+  --color-brand: #1e40af;
+}
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
