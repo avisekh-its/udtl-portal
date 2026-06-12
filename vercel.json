@@ -4,5 +4,11 @@
   "installCommand": "npm install",
   "outputDirectory": "apps/web/.next",
   "framework": "nextjs",
-  "regions": ["yul1"]
+  "regions": ["yul1"],
+  "crons": [
+    {
+      "path": "/api/cron/poll-fleethunt",
+      "schedule": "* * * * *"
+    }
+  ]
 }

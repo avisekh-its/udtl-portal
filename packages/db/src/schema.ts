@@ -98,6 +98,13 @@ export const users = pgTable("users", {
   /** FRD §5.2: optional restricted flag for customer users */
   restricted: boolean("restricted").notNull().default(false),
   active: boolean("active").notNull().default(true),
+  /** Credit form (Option B): when required, the account stays inactive until a
+   *  staff member confirms UDTL received the signed PDF out-of-band. The app
+   *  stores NO credit-form field data — only this received flag + who/when. */
+  creditFormRequired: boolean("credit_form_required").notNull().default(false),
+  creditFormReceived: boolean("credit_form_received").notNull().default(false),
+  creditFormReceivedAt: timestamp("credit_form_received_at", { withTimezone: true }),
+  creditFormReceivedBy: uuid("credit_form_received_by"),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   ssoProvider: text("sso_provider"), // 'google' | 'microsoft' | 'saml' | null
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -134,11 +141,16 @@ export const trackingDevices = pgTable("tracking_devices", {
 ───────────────────────────────────────────────────────────────────── */
 export const loads = pgTable("loads", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  /** Sequential UDTL load reference (e.g. UDTL-24187) */
+  /** Sequential internal load reference (e.g. UDTL-1000) */
   loadReference: text("load_reference").notNull().unique(),
+  /** UDTL's order-sheet Order # (e.g. LC26051800), if any. */
+  orderNumber: text("order_number"),
+  /** Order Date + Pickup Date from the order sheet. */
+  orderDate: timestamp("order_date", { withTimezone: true }),
+  pickupDate: timestamp("pickup_date", { withTimezone: true }),
   /** Non-guessable public tracking token (FR-PUB-012) */
   publicTrackingToken: text("public_tracking_token").notNull().unique(),
-  /** Customer's PO / their own number */
+  /** Customer's PO / Cust. Order # */
   customerReference: text("customer_reference"),
   organizationId: uuid("organization_id")
     .notNull()
@@ -198,10 +210,57 @@ export const stops = pgTable("stops", {
   plannedToAt: timestamp("planned_to_at", { withTimezone: true }),
   /** Actual times — only set when staff updates */
   actualAt: timestamp("actual_at", { withTimezone: true }),
+  /** Order-sheet per-stop contact (often blank → missing-contact confirm rule). */
+  contactPerson: text("contact_person"),
+  phone: text("phone"),
+  notes: text("notes"),
+  /** Geocoded coordinates (Epic 4) — used as the ETA destination. Cached after
+   *  the first forward-geocode of the address. */
+  lat: real("lat"),
+  lng: real("lng"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Point of contact per stop — FRD §5.4 */
+/* ─────────────────────────────────────────────────────────────────────
+   Stop commodity block — Epic 3 (UDTL order sheet).
+   Each stop carries 1+ commodity rows (commodity, PKG, weight, L×B×H,
+   equipment, rate method, reefer, value of goods).
+───────────────────────────────────────────────────────────────────── */
+export const stopCommodities = pgTable("stop_commodities", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  stopId: integer("stop_id")
+    .notNull()
+    .references(() => stops.id, { onDelete: "cascade" }),
+  sequence: integer("sequence").notNull().default(1),
+  commodity: text("commodity"),
+  pkgQty: real("pkg_qty"),
+  pkgUnit: text("pkg_unit").default("Pieces"),
+  weight: real("weight"),
+  weightUnit: text("weight_unit").default("Pounds"),
+  lengthIn: real("length_in"),
+  breadthIn: real("breadth_in"),
+  heightIn: real("height_in"),
+  equipment: text("equipment"),
+  rateMethod: text("rate_method"),
+  reefer: boolean("reefer").notNull().default(false),
+  valueOfGoods: real("value_of_goods"),
+});
+
+/* ─────────────────────────────────────────────────────────────────────
+   Load charges — Epic 3. Order-level charge lines (e.g. Freight Charge) →
+   Total. Single order-level total, NO per-stop pricing.
+───────────────────────────────────────────────────────────────────── */
+export const loadCharges = pgTable("load_charges", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  loadId: integer("load_id")
+    .notNull()
+    .references(() => loads.id, { onDelete: "cascade" }),
+  sequence: integer("sequence").notNull().default(1),
+  description: text("description").notNull(),
+  amountCents: integer("amount_cents").notNull().default(0),
+});
+
+/** Point of contact per stop — FRD §5.4 (additional contacts beyond the primary) */
 export const stopContacts = pgTable("stop_contacts", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   stopId: integer("stop_id")
@@ -227,6 +286,51 @@ export const locationHistory = pgTable("location_history", {
   heading: real("heading"),
   odometer: real("odometer"),
   capturedAt: timestamp("captured_at", { withTimezone: true }).notNull(),
+});
+
+/* ─────────────────────────────────────────────────────────────────────
+   Login attempts — FR-AUTH-001 (account lockout)
+   Failed-attempt ledger for the serverless login throttle. Accessed only via
+   the service-role client; RLS denies `authenticated` entirely (migration 0002).
+───────────────────────────────────────────────────────────────────── */
+export const loginAttempts = pgTable("login_attempts", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  email: text("email").notNull(),
+  ip: text("ip"),
+  succeeded: boolean("succeeded").notNull().default(false),
+  attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* ─────────────────────────────────────────────────────────────────────
+   Credit form — Option B (Meeting 3 / UDTL confirmed).
+   The app stores NO credit-form contents — UDTL's PDF is completed out-of-band.
+   Only the per-user `credit_form_received` flag (on `users`, above) gates
+   activation. The old `credit_form_submissions` table was dropped (migration 0006).
+───────────────────────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────────
+   FleetHunt per-key rate-limit state — FR-TRACK-004 (Epic 4)
+   Serverless has no in-process memory across cron runs, so the per-key call
+   budget (60/min) and back-off state live here. One row per API key index.
+───────────────────────────────────────────────────────────────────── */
+export const fleethuntKeyState = pgTable("fleethunt_key_state", {
+  keyIndex: integer("key_index").primaryKey(),
+  windowStartedAt: timestamp("window_started_at", { withTimezone: true }).notNull().defaultNow(),
+  callCount: integer("call_count").notNull().default(0),
+  backoffUntil: timestamp("backoff_until", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* ─────────────────────────────────────────────────────────────────────
+   App settings — key/value config (FRD §18 #5 cost visibility, digest times…)
+   One row per setting; value is jsonb. Writes are admin-only (RLS); reads are
+   open to authenticated so views can honour e.g. the cost-visibility toggle.
+───────────────────────────────────────────────────────────────────── */
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<unknown>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
 });
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -259,3 +363,19 @@ export type TrackingDevice = typeof trackingDevices.$inferSelect;
 export type NewTrackingDevice = typeof trackingDevices.$inferInsert;
 export type LocationFix = typeof locationHistory.$inferSelect;
 export type NewLocationFix = typeof locationHistory.$inferInsert;
+export type LoginAttempt = typeof loginAttempts.$inferSelect;
+export type NewLoginAttempt = typeof loginAttempts.$inferInsert;
+export type OrganizationContact = typeof organizationContacts.$inferSelect;
+export type NewOrganizationContact = typeof organizationContacts.$inferInsert;
+export type StopContact = typeof stopContacts.$inferSelect;
+export type NewStopContact = typeof stopContacts.$inferInsert;
+export type StopCommodity = typeof stopCommodities.$inferSelect;
+export type NewStopCommodity = typeof stopCommodities.$inferInsert;
+export type LoadCharge = typeof loadCharges.$inferSelect;
+export type NewLoadCharge = typeof loadCharges.$inferInsert;
+export type AppSetting = typeof appSettings.$inferSelect;
+export type NewAppSetting = typeof appSettings.$inferInsert;
+export type FleethuntKeyState = typeof fleethuntKeyState.$inferSelect;
+export type NewFleethuntKeyState = typeof fleethuntKeyState.$inferInsert;
+export type AuditEntry = typeof auditLog.$inferSelect;
+export type NewAuditEntry = typeof auditLog.$inferInsert;

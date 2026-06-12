@@ -1,192 +1,209 @@
 # UDTL Customer Portal & Operations Console
 
-Built by **ITS Inc.** for **United Dhillon Trucking Lines Inc. (UDTL)**.
-Functional spec: `UDTL_FRD_v1.0.pdf` (shared internally).
+A logistics SaaS platform built by **ITS Inc.** for **United Dhillon Trucking Lines Inc. (UDTL)** — a customer-facing shipment-tracking portal and an internal operations console, in one Next.js application.
 
-This is the **Epic 0 scaffold** — the empty repo + hosting wiring. Real
-features land in Epics 2 onward (auth → portal → ops → tracking → reports).
+> **Confidential.** For ITS Inc. and UDTL internal use only.
 
----
-
-## Stack
-
-| Layer | Choice | Hosted on |
-|---|---|---|
-| Web app | Next.js 15 (App Router) + TS | **Vercel** (YUL1) |
-| Polling worker | Node.js + Drizzle | **Railway** |
-| DB + Auth + Storage | Supabase (Postgres + Auth + Storage) | **Supabase** (ca-central-1) |
-| ORM | Drizzle | shared via `@udtl/db` package |
-| UI | Tailwind v4 + shadcn/ui | — |
-| Map | Mapbox (light style, flat per client June 1 feedback) | — |
-| Email | Resend + React Email | — |
-| SMS | Twilio | — |
-| PDF | `@react-pdf/renderer` | — |
-| Errors | Sentry | — |
+<p>
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-black?logo=next.js">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white">
+  <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Postgres-3ecf8e?logo=supabase&logoColor=white">
+  <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss&logoColor=white">
+</p>
 
 ---
 
-## Repo layout
+## Overview
+
+UDTL's dispatchers create and manage freight orders, assign GPS-tracked trucks, and watch the fleet on a live map. Their customers log in to a branded portal to see only their own shipments with live ETAs. The same database and role-based access control power both experiences, deployed entirely on Vercel + Supabase — no separate backend service.
+
+**Live GPS tracking is wired to FleetHunt and running against the real fleet.** Mapping (routing, ETA, geocoding, and tiles) uses free, open providers — no Mapbox, no API token.
+
+---
+
+## Features
+
+### Operations Console (UDTL staff & admin)
+- **Dashboard** — KPI cards, loads-by-status and loads-by-customer charts, recent-loads and in-transit tables.
+- **Orders / Loads** — UDTL's real order sheet: one shipper + N consignees, per-stop commodity blocks, order-level charges → total, missing-contact confirmation.
+- **Order import** — single-order creation from a UDTL order-sheet **PDF**, and bulk creation via an ITS-format **CSV** (downloadable template, row-by-row validation, pre-commit preview, upsert by Customer Order # to avoid duplicates).
+- **Live tracking** — FleetHunt positions polled centrally; live distance-to-go, ETA, and reverse-geocoded place names cached per load.
+- **Tracking-device assignment** — assign / change / clear a FleetHunt device per load (availability + no-GPS-gateway flags, confirmation, fully audited).
+- **Operations live map** — all active loads + tracked devices on a Leaflet/OpenStreetMap map; switch focus between orders and devices; per-load route overlay (pickup → stops → destination + live truck).
+- **Customers & users** — manage customer organizations, invite users, credit-application gating, role assignment.
+- **Audit log** — every status change, device/AM assignment, and import recorded.
+
+### Customer Portal (customer admin & users)
+- Branded dashboard showing **only the signed-in customer's** orders (enforced by Postgres Row-Level Security).
+- Read-only live tracking (place, ETA, distance) per order.
+- Customer-admin team management; restricted users see only orders explicitly assigned to them.
+
+### Platform
+- **Auth & RBAC** — email/password + a 5-role permission matrix as the single source of truth.
+- **SSO** — optional Google / Microsoft sign-in that validates against an existing active user (convenience layer, any role).
+- **Session hardening** — idle-timeout, login-attempt throttling.
+
+---
+
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Web app (full-stack) | Next.js 15 (App Router, Server Components & Actions) + TypeScript |
+| Database / Auth | Supabase (Postgres + Auth + Row-Level Security) |
+| ORM / schema | Drizzle, shared via the `@udtl/db` workspace package |
+| UI | Tailwind CSS v4, custom component set (charcoal + orange UDTL branding) |
+| Maps | **Leaflet + OpenStreetMap** tiles (free, no token) |
+| Routing / ETA / geocoding | **OSRM** (driving routes) + **Nominatim** (geocode / reverse-geocode) |
+| GPS provider | **FleetHunt** (`GET /api/devices` — whole fleet + positions per call) |
+| Background jobs | Vercel Cron → Next.js route handlers |
+| Hosting | Vercel (app + cron) · Supabase (`ca-central-1`) |
+
+---
+
+## Architecture
+
+### Monorepo layout
 
 ```
 UDTL/
 ├── apps/
-│   ├── web/              Next.js 15 — deploys to Vercel
-│   │   ├── src/app/      App Router pages
-│   │   ├── src/lib/      Supabase + Drizzle helpers
-│   │   └── src/components/
-│   └── worker/           Node.js polling worker — deploys to Railway
-│       ├── src/index.ts  Entry: setInterval poll loop, multi-key FleetHunt
-│       └── Dockerfile
-├── packages/
-│   └── db/               Shared Drizzle schema + types (@udtl/db)
-│       ├── src/schema.ts FRD §5 data model
-│       ├── src/index.ts  getDb() factory
-│       └── drizzle.config.ts
-├── .github/workflows/
-│   └── ci.yml            Lint + typecheck on PR
-├── .env.example          Template for all env vars
-├── vercel.json           Vercel monorepo config
-├── railway.toml          Railway worker config
-├── package.json          npm workspaces root
-└── tsconfig.json         Base TS config
+│   └── web/                         Next.js 15 full-stack app (deploys to Vercel)
+│       └── src/
+│           ├── app/
+│           │   ├── ops/             Operations console (staff/admin)
+│           │   ├── portal/          Customer portal
+│           │   ├── api/
+│           │   │   ├── cron/        FleetHunt poll + scheduled jobs (Vercel Cron)
+│           │   │   └── order-route/ Per-load route stops for the map
+│           │   ├── login/  auth/    Auth flows + SSO callback
+│           │   └── set-password/
+│           ├── components/          UI: app shell, tables, charts, maps, forms
+│           └── lib/                 auth, permissions, supabase, fleethunt,
+│                                    mapping, tracking, audit
+└── packages/
+    └── db/                          Shared Drizzle schema + types (@udtl/db)
+        ├── src/schema.ts            Data model
+        └── migrations/              Checked-in SQL migrations
 ```
 
----
+### FleetHunt polling model (cost-bounded)
 
-## Why the split between Vercel and Railway
+The whole app — including background polling — runs on **Vercel only**; there is no separate worker. A **Vercel Cron** job invokes a route handler that takes a single bulk snapshot of the fleet:
 
-FRD requires (FR-TRACK-002 + NFR-005):
+- FleetHunt's `GET /api/devices` returns **the entire fleet with current positions in one call**, so one request per sweep covers every active load (well within the 200 req/min/key budget).
+- Positions, ETAs, distances, and place names are written to **our** database; the UI reads from our DB, so any number of concurrent viewers cost **zero** extra FleetHunt calls.
+- A rate-limit governor (persisted in Postgres, since serverless invocations are stateless) backs off on 429/503 and supports multiple keys.
+- Cron routes authenticate via `Authorization: Bearer $CRON_SECRET`.
 
-- Background service polls FleetHunt ~every 30 s for actively-viewed loads
-- Stays under 60 req/min/key, rotates across multiple keys
-- Back-off on 429/503
-- Runs continuously (not per-request)
+### Provider abstraction
 
-Vercel Cron's minimum cadence is 1 min and each invocation is ephemeral —
-no clean place to hold rate-limit state across multiple keys. So the worker
-runs on Railway as a single persistent Node process (~$5/mo Hobby).
-
-The Next.js web app runs on Vercel for first-class Next.js perks
-(edge cache, RSC, image optimisation, preview deploys per PR).
+FleetHunt and the mapping providers sit behind interfaces with **mock** and **live** implementations, so the full pipeline runs offline for development/UAT (`FLEETHUNT_MOCK=true`, `MAPPING_MOCK=true`) and flips to live by setting real keys.
 
 ---
 
-## Local setup
+## Roles & access (RBAC)
 
-### 1. Prereqs
-- Node ≥ 22
+The permission matrix in `apps/web/src/lib/permissions.ts` is the single source of truth, enforced in the app **and** mirrored by Postgres Row-Level Security.
+
+| Role | Scope |
+|---|---|
+| **UDTL Admin** | Full access incl. system settings & user management |
+| **UDTL Staff** | Operations: load CRUD, status, device & AM assignment, customer management |
+| **UDTL Account Manager** | Read-all + dashboard + receives comments (no edits) |
+| **Customer Admin** | Own company: manage users, per-order access assignment |
+| **Customer User** | Read own / assigned orders, comment, manage own subscriptions |
+
+---
+
+## Getting started
+
+### Prerequisites
+- **Node 22** (pinned in `.nvmrc` — run `nvm use`)
 - npm (workspaces)
-- A Supabase project (create at [supabase.com](https://supabase.com), region `ca-central-1`)
+- A Supabase project (region `ca-central-1`)
 
-### 2. Install
+### Install
 ```sh
-cd UDTL
+nvm use
 npm install
 ```
 
-### 3. Env files
+### Configure environment
 ```sh
-cp .env.example .env.local            # for apps/web
-cp .env.example apps/worker/.env      # for apps/worker
+cp .env.example apps/web/.env.local
 ```
+Fill in at least the Supabase keys + `DATABASE_URL`. Leave `FLEETHUNT_MOCK=true` to run with a simulated fleet, or set `FLEETHUNT_API_KEYS` to go live. See [Environment variables](#environment-variables).
 
-Fill in:
-- `DATABASE_URL` — Supabase → Project Settings → Database → Connection string (URI / Pool mode)
-- `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API
-- `FLEETHUNT_API_KEYS` — comma-separated list, get from UDTL
-- `NEXT_PUBLIC_MAPBOX_TOKEN` — from [account.mapbox.com](https://account.mapbox.com)
-- The rest land as their epics arrive (Resend in Epic 5, Twilio in Epic 5, Sentry in Epic 0 once we have a project, hCaptcha in Epic 7).
-
-### 4. Run
+### Run
 ```sh
-# in one terminal — web app at http://localhost:3000
-npm run dev:web
-
-# in another — polling worker
-npm run dev:worker
+npm run dev          # http://localhost:3000
 ```
+> Use **port 3000** — OAuth/SSO callbacks are configured against `localhost:3000`.
 
-### 5. Database migrations (once schema lands in Epic 2/3)
+### Database migrations
 ```sh
-npm run db:generate          # generate migration from schema diff
-npm run db:migrate           # apply pending migrations to DATABASE_URL
-npm run db:studio            # open Drizzle Studio in browser
+npm run db:generate  # generate a migration from the schema diff
+npm run db:migrate   # apply pending migrations to DATABASE_URL
+npm run db:studio    # open Drizzle Studio
 ```
 
 ---
 
-## Deploy
+## Scripts
 
-### Vercel (web app)
-1. Connect this repo to a Vercel project
-2. Set the root directory to `/` (Vercel reads `vercel.json` for the rest)
-3. Pick **YUL1 (Montreal)** as the region in Project Settings → General (per FRD NFR-009 data residency)
-4. Add all `NEXT_PUBLIC_*` and server env vars under Project Settings → Environment Variables
-5. Set up a `staging` branch in addition to `main` for the staging environment
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the web app (port 3000) |
+| `npm run build` | Build `@udtl/db` then the web app |
+| `npm run typecheck` | TypeScript check across all workspaces |
+| `npm run lint` | Lint across all workspaces |
+| `npm run db:generate` | Generate a Drizzle migration |
+| `npm run db:migrate` | Apply migrations |
+| `npm run db:studio` | Open Drizzle Studio |
 
-### Railway (polling worker)
-1. Create a Railway project, link this repo
-2. Set the root to `apps/worker` (Railway reads `apps/worker/Dockerfile`)
-3. Or use `railway.toml` at the repo root which already points at the Dockerfile
-4. Add the same env vars (DATABASE_URL, FLEETHUNT_*, SENTRY_*)
-5. Pick the closest Canadian region
+---
+
+## Environment variables
+
+Copy `.env.example` → `apps/web/.env.local`. Key groups:
+
+| Variable(s) | Purpose |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` | Supabase connection + server access |
+| `FLEETHUNT_API_KEYS`, `FLEETHUNT_MOCK`, `FLEETHUNT_BASE_URL` | GPS provider (keys present → live; empty + mock → simulated) |
+| `OSRM_BASE_URL`, `NOMINATIM_BASE_URL`, `MAPPING_MOCK` | Optional overrides for the free routing/geocoding providers |
+| `CRON_SECRET` | Authenticates Vercel Cron → `/api/cron/*` (`openssl rand -hex 32`) |
+| `NEXT_PUBLIC_SSO_ENABLED`, Google/Microsoft client IDs | SSO (OAuth secrets are entered in the Supabase dashboard) |
+| `SESSION_IDLE_MINUTES`, `LOGIN_MAX_ATTEMPTS`, `LOGIN_LOCKOUT_MINUTES` | Auth hardening |
+
+> **Never commit secrets.** `.env` / `.env.local` are git-ignored; only `.env.example` (placeholders) is tracked.
+
+---
+
+## Deployment
+
+### Vercel (app + cron)
+1. Connect this repo to a Vercel project (root directory `/`).
+2. Add all server + `NEXT_PUBLIC_*` env vars, including `CRON_SECRET`.
+3. The region and cron schedule are declared in `vercel.json` — no extra setup.
 
 ### Supabase
-1. Create one project per environment (staging + production) — same region
-2. Run migrations on each: `DATABASE_URL=... npm run db:migrate`
-3. Configure auth providers in Authentication → Providers (Email + Google + Microsoft + SAML for UDTL staff per FR-AUTH-003)
+1. One project per environment (staging + production), same region.
+2. Apply migrations: `DATABASE_URL=… npm run db:migrate`.
+3. Configure Auth providers (Email, and Google/Microsoft for SSO) in **Authentication → Providers**.
 
 ---
 
-## Conventions (Epic 0)
+## Security
 
-- **Time storage**: UTC (`timestamptz`). All times normalised before insert.
-- **Time display**: local to viewing user via `Intl.DateTimeFormat`.
-- **Date+time windows** (FRD §12.1): stored as `(planned_from_at, planned_to_at)` pair.
-- **Secrets**: Vercel/Railway env vars + `.env.local`/`apps/worker/.env`. Never commit.
-- **Errors**: Sentry (web + worker, separate environments).
-- **Logging**: structured JSON (pino in the worker, console in Next.js).
-- **IDs**: `uuid` for user/org (matches Supabase Auth), `bigserial` for internal IDs, `text` for public tokens.
-- **Migrations**: Drizzle Kit, checked into git, applied via CI on deploy.
+- Secrets live only in environment variables; `.env*` is git-ignored.
+- Customer data isolation is enforced at the database layer via Row-Level Security, not just the app.
+- Privileged writes (activation, role) go through the service role on the server, never the client.
+- Cron endpoints are bearer-token protected.
 
 ---
 
-## What's pending (Section 17 of the FRD)
+## License
 
-These are blockers for later epics — none affects Epic 0 scaffold:
-
-1. Sample TMS order export file (defines load CSV format)
-2. Confirmed required order fields
-3. Quick-view fields for order list
-4. Credit/sign-up form fields
-5. Rating form content
-6. Branding assets (logo, colours, fonts)
-7. On-time multi-stop logic
-8. Digest times (morning + EOD defaults)
-9. Cost visibility default
-10. Status names + 4 date field confirmation
-11. Single primary contact at UDTL with 1–2 day feedback SLA
-
----
-
-## Epic roadmap
-
-| Epic | Focus | FRD sections |
-|---|---|---|
-| **0** | Stack + scaffold (this) | — |
-| 1 | Stack confirmation deliverable (covered by Epic 0 doc) | — |
-| 2 | Auth + RBAC | §13.1, §4 |
-| 3 | Customer portal foundation (dashboard, orders, multi-stop view) | §8 |
-| 4 | Live tracking + FleetHunt worker | §7 |
-| 5 | Notifications (email + SMS + in-app) | §11 |
-| 6 | Operations console (CRUD, CSV import, status updates) | §9 |
-| 7 | Public + link-based tracking | §10 |
-| 8 | Reporting + KPI dashboard | §12 |
-| 9 | Comments + rating | §14, §15 |
-| 10 | Audit + admin tools | §13.2 |
-
----
-
-## License & confidentiality
-
-Confidential. For ITS Inc. and UDTL internal use only.
+Confidential and proprietary. © ITS Inc. / United Dhillon Trucking Lines Inc. All rights reserved.

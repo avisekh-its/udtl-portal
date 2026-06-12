@@ -17,6 +17,10 @@ out/
 .env.*
 !.env.example
 
+# local secrets
+.supabase-db-password.txt
+*.secret
+
 # logs
 npm-debug.log*
 yarn-debug.log*
@@ -37,3 +41,6 @@ next-env.d.ts
 # misc
 *.log
 coverage/
+
+# internal docs — not for the repo
+docs/

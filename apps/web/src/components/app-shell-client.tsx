@@ -1,0 +1,231 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { NAV_ICONS, type IconName } from "@/components/icons";
+import { IconBell, IconSearch, IconMenu, IconSignOut, IconChevronDown, IconPanelLeft } from "@/components/icons";
+import { BrandMark } from "@/components/brand-mark";
+
+export interface NavItem {
+  label: string;
+  href: string;
+  icon: IconName;
+  /** Treat as active only on exact match (dashboards). */
+  exact?: boolean;
+}
+
+export interface ShellUser {
+  name: string;
+  email: string;
+  roleLabel: string;
+  initials: string;
+}
+
+export function AppShellClient({
+  user,
+  area,
+  nav,
+  children,
+}: {
+  user: ShellUser;
+  area: string;
+  nav: NavItem[];
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Restore + persist the desktop rail preference.
+  useEffect(() => {
+    if (localStorage.getItem("udtl_sidebar_collapsed") === "1") setCollapsed(true);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("udtl_sidebar_collapsed", collapsed ? "1" : "0");
+  }, [collapsed]);
+
+  // Close drawers on navigation.
+  useEffect(() => {
+    setMobileOpen(false);
+    setProfileOpen(false);
+  }, [pathname]);
+
+  function isActive(item: NavItem) {
+    if (item.exact) return pathname === item.href;
+    return pathname === item.href || pathname.startsWith(item.href + "/");
+  }
+
+  const tooltip =
+    "pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 -translate-x-1 whitespace-nowrap rounded-md bg-[var(--color-ink)] px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition group-hover:translate-x-0 group-hover:opacity-100";
+
+  /** `rail` = collapsed icon-only mode (desktop). The mobile drawer always renders full. */
+  const renderSidebar = (rail: boolean) => (
+    <div className="flex h-full flex-col bg-[var(--color-primary)] text-white">
+      <div className={`flex h-14 items-center ${rail ? "justify-center px-0" : "gap-2.5 px-5"}`}>
+        <BrandMark />
+        {!rail && <span className="text-[10px] uppercase tracking-[0.16em] text-white/45">{area}</span>}
+      </div>
+
+      <nav className="flex-1 space-y-1 px-3 py-4">
+        {nav.map((item) => {
+          const Icon = NAV_ICONS[item.icon];
+          const active = isActive(item);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`group relative flex items-center rounded-lg text-sm transition ${
+                rail ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2"
+              } ${active ? "bg-white/10 font-medium text-white" : "text-white/60 hover:bg-white/5 hover:text-white"}`}
+            >
+              <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-[var(--color-secondary)]" : ""}`} />
+              {!rail && <span className="truncate">{item.label}</span>}
+              {rail && <span className={tooltip}>{item.label}</span>}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="border-t border-white/10 px-3 py-3">
+        <form action="/auth/signout" method="post">
+          <button
+            type="submit"
+            className={`group relative flex w-full items-center rounded-lg text-sm text-white/65 transition hover:bg-white/8 hover:text-white ${
+              rail ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2"
+            }`}
+          >
+            <IconSignOut className="h-[18px] w-[18px] shrink-0" />
+            {!rail && "Sign out"}
+            {rail && <span className={tooltip}>Sign out</span>}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[var(--color-bg)]">
+      {/* Fixed sidebar (desktop / tablet) — animates between full + rail */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 hidden transition-[width] duration-300 ease-in-out md:block ${
+          collapsed ? "w-[76px]" : "w-60"
+        }`}
+      >
+        {renderSidebar(collapsed)}
+      </aside>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-60">{renderSidebar(false)}</aside>
+        </div>
+      )}
+
+      <div className={`transition-[padding] duration-300 ease-in-out ${collapsed ? "md:pl-[76px]" : "md:pl-60"}`}>
+        {/* Top header */}
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-[var(--color-border)] bg-white/90 px-4 backdrop-blur sm:px-6">
+          {/* Desktop rail toggle */}
+          <button
+            type="button"
+            onClick={() => setCollapsed((v) => !v)}
+            className="hidden rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 md:inline-flex"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <IconPanelLeft />
+          </button>
+          {/* Mobile drawer toggle */}
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 md:hidden"
+            aria-label="Open menu"
+          >
+            <IconMenu />
+          </button>
+
+          <div className="relative hidden max-w-md flex-1 sm:block">
+            <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              placeholder="Search loads, customers…"
+              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] py-1.5 pl-9 pr-3 text-sm outline-none transition focus:border-[var(--color-secondary)] focus:bg-white"
+            />
+          </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            {/* Notifications */}
+            <button
+              type="button"
+              className="relative grid h-9 w-9 place-items-center rounded-lg border border-[var(--color-border)] bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+              aria-label="Notifications"
+            >
+              <IconBell className="h-[18px] w-[18px]" />
+              <span className="absolute right-1.5 top-1.5 flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-secondary)] opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-secondary)] ring-2 ring-white" />
+              </span>
+            </button>
+
+            <span className="hidden h-7 w-px bg-[var(--color-border)] sm:block" />
+
+            {/* Profile */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProfileOpen((v) => !v)}
+                className="flex items-center gap-2.5 rounded-lg border border-transparent py-1 pl-1 pr-1.5 transition hover:border-[var(--color-border)] hover:bg-white"
+              >
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[#34363c] text-xs font-semibold text-white ring-2 ring-[var(--color-secondary)]/25">
+                  {user.initials}
+                </span>
+                <span className="hidden text-left leading-tight sm:block">
+                  <span className="block text-sm font-medium text-slate-800">{user.name}</span>
+                  <span className="block text-[11px] text-slate-400">{user.roleLabel}</span>
+                </span>
+                <IconChevronDown
+                  className={`hidden h-4 w-4 text-slate-400 transition-transform sm:block ${profileOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {profileOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
+                  <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-xl border border-[var(--color-border)] bg-white shadow-xl">
+                    <div className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[#f7f8fa] px-4 py-3">
+                      <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[#34363c] text-sm font-semibold text-white ring-2 ring-[var(--color-secondary)]/25">
+                        {user.initials}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-slate-800">{user.name}</div>
+                        <div className="truncate text-xs text-slate-400">{user.email}</div>
+                      </div>
+                    </div>
+                    <div className="px-4 py-2">
+                      <span className="inline-flex items-center rounded-full bg-[var(--color-secondary)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-secondary)]">
+                        {user.roleLabel}
+                      </span>
+                    </div>
+                    <form action="/auth/signout" method="post" className="border-t border-[var(--color-border)]">
+                      <button
+                        type="submit"
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <IconSignOut className="h-4 w-4" /> Sign out
+                      </button>
+                    </form>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
+      </div>
+    </div>
+  );
+}

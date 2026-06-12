@@ -1,16 +1,53 @@
 @import "tailwindcss";
 
-/* Brand tokens — placeholder values until UDTL delivers branding (FRD §17 item 6). */
+/*
+ * UDTL design system — clean logistics SaaS (Meeting 3 direction).
+ * Navy structure + WHITE/GRAY base + ORANGE/BLACK brand accents (from the UDTL
+ * logo: black "UDTL" on orange). Flat, standard-SaaS look — not fancy.
+ */
 @theme {
-  --color-bg: #ffffff;
-  --color-text: #0f172a;
+  /* Structure — charcoal/near-black to match the UDTL logo (black + orange) */
+  --color-primary: #1a1b1e;      /* charcoal — sidebar, dark panels */
+  --color-primary-700: #0f1012;
+  --color-primary-300: #9aa1ab;
+
+  /* Brand accent — orange (CTAs, links, active, highlights) */
+  --color-secondary: #e85d1c;    /* UDTL orange */
+  --color-secondary-700: #c44c12;/* orange hover/darker */
+  --color-accent: #e85d1c;       /* orange highlight */
+  --color-ink: #1a1a1a;          /* brand black */
+
+  /* Status */
+  --color-success: #2e9e5b;
+  --color-warning: #e08a1e;
+  --color-error: #d64545;
+  --color-info: #2f6b9a;         /* muted blue (e.g. Assigned chip) */
+
+  /* Surfaces — light, neutral, clean */
+  --color-bg: #f5f7f9;
+  --color-surface: #ffffff;
+  --color-border: #e4e8ee;
+  --color-text: #1f2937;
   --color-muted: #64748b;
-  --color-border: #e2e8f0;
-  --color-brand: #1e40af;
+
+  /* Brand alias kept so older references don't break */
+  --color-brand: #e85d1c;
+
+  --radius-card: 12px;
 }
 
-html, body {
+html,
+body {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Reusable surface card — flat, single hairline + faint shadow */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 2px rgba(16, 39, 66, 0.04);
 }

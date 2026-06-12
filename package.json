@@ -2,15 +2,15 @@
   "name": "udtl",
   "version": "0.0.1",
   "private": true,
-  "description": "UDTL Customer Portal & Operations Console — monorepo (web + worker + shared db schema)",
+  "description": "UDTL Customer Portal & Operations Console — monorepo (Next.js web on Vercel + shared db schema)",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
+    "dev": "npm run dev -w @udtl/web",
     "dev:web": "npm run dev -w @udtl/web",
-    "dev:worker": "npm run dev -w @udtl/worker",
-    "build": "npm run build -w @udtl/db && npm run build -w @udtl/web && npm run build -w @udtl/worker",
+    "build": "npm run build -w @udtl/db && npm run build -w @udtl/web",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:generate": "npm run generate -w @udtl/db",
@@ -18,6 +18,6 @@
     "db:studio": "npm run studio -w @udtl/db"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   }
 }
