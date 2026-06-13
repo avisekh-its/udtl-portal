@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { createOrgAction, updateOrgAction } from "@/app/ops/customers/actions";
 import { FormSection, FieldShell, controlClass } from "@/components/form/form-section";
 import { StickyActionBar, CancelLink, PrimaryButton } from "@/components/form/sticky-action-bar";
@@ -29,16 +30,12 @@ export function OrgForm({
   initial?: OrgFormValues;
 }) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    setError(null);
-    setOk(null);
     setNameError(null);
     if (!String(formData.get("name") ?? "").trim()) {
       setNameError("Company name is required.");
@@ -50,11 +47,12 @@ export function OrgForm({
           ? await createOrgAction(formData)
           : await updateOrgAction(orgId!, formData);
       if (result.error) {
-        setError(result.error);
+        toast.error(result.error);
       } else if (mode === "create" && result.id) {
+        toast.success("Customer created.");
         router.push(`/ops/customers/${result.id}`);
       } else {
-        setOk("Changes saved.");
+        toast.success("Changes saved.");
         router.refresh();
       }
     });
@@ -62,17 +60,6 @@ export function OrgForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
-      {error && (
-        <div className="rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 px-3 py-2 text-sm text-[var(--color-error)]">
-          {error}
-        </div>
-      )}
-      {ok && (
-        <div className="rounded-lg border border-[var(--color-success)]/30 bg-[var(--color-success)]/5 px-3 py-2 text-sm text-[var(--color-success)]">
-          {ok}
-        </div>
-      )}
-
       <FormSection title="Company" description="The customer company UDTL ships for.">
         <FieldShell label="Company name" htmlFor="name" required error={nameError ?? undefined} full>
           <input id="name" name="name" defaultValue={initial.name ?? ""} className={controlClass} />

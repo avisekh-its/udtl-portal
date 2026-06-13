@@ -1,14 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build -w @udtl/web",
-  "installCommand": "npm install",
-  "outputDirectory": "apps/web/.next",
   "framework": "nextjs",
   "regions": ["yul1"],
   "crons": [
     {
       "path": "/api/cron/poll-fleethunt",
-      "schedule": "0 11 * * *"
+      "schedule": "* * * * *"
     }
   ]
 }

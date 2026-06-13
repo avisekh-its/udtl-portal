@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { LoginForm } from "./login-form";
 import { BrandMark } from "@/components/brand-mark";
 
@@ -51,10 +52,26 @@ export default async function LoginPage({
       </div>
 
       {/* Right — premium brand panel (hidden on small screens) */}
-      <div
-        className="relative hidden flex-col justify-between overflow-hidden p-12 text-white md:flex"
-        style={{ background: "linear-gradient(155deg, #23262d 0%, #15161a 55%, #0d0e10 100%)" }}
-      >
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-[#1a1b1e] p-12 text-white md:flex">
+        {/* UDTL truck photo — crop biased right to show the trailer's UDTL logo */}
+        <Image
+          src="/brand/login-truck.jpg"
+          alt=""
+          fill
+          priority
+          sizes="50vw"
+          className="object-cover"
+          style={{ objectPosition: "76% 50%" }}
+        />
+        {/* charcoal gradient over the photo so text stays legible (matches brand #1a1b1e) */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(18,19,22,0.90) 0%, rgba(16,17,20,0.82) 45%, rgba(10,11,13,0.95) 100%)",
+          }}
+        />
         {/* soft orange brand glow */}
         <div
           aria-hidden

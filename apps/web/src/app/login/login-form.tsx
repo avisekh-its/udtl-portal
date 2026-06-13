@@ -96,16 +96,6 @@ export function LoginForm({ initialError }: { initialError?: string }) {
           </div>
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input
-            type="checkbox"
-            name="remember"
-            defaultChecked
-            className="h-4 w-4 rounded border-slate-300 accent-[var(--color-secondary)]"
-          />
-          Remember me on this device
-        </label>
-
         <button
           type="submit"
           disabled={pending}

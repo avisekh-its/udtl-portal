@@ -1,21 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
+import { toast } from "sonner";
 import { syncDevicesAction, pollNowAction } from "@/app/ops/devices/actions";
 
 export function TrackingActions() {
   const router = useRouter();
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
   function run(fn: () => Promise<{ ok?: boolean; error?: string; message?: string }>) {
-    setMsg(null);
     startTransition(async () => {
       const r = await fn();
-      if (r.error) setMsg({ ok: false, text: r.error });
+      if (r.error) toast.error(r.error);
       else {
-        setMsg({ ok: true, text: r.message ?? "Done." });
+        toast.success(r.message ?? "Done.");
         router.refresh();
       }
     });
@@ -42,11 +41,6 @@ export function TrackingActions() {
       >
         {pending ? "Working…" : "Poll now"}
       </button>
-      {msg && (
-        <span className={`text-xs ${msg.ok ? "text-[var(--color-success)]" : "text-[var(--color-error)]"}`}>
-          {msg.text}
-        </span>
-      )}
     </div>
   );
 }

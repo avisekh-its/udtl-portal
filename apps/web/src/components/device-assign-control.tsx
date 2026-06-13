@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { controlClass } from "@/components/form/form-section";
 import { assignDeviceAction } from "@/app/ops/loads/actions";
 import type { DeviceOption } from "@/app/ops/loads/assignment-data";
@@ -25,7 +26,6 @@ export function DeviceAssignControl({
   const router = useRouter();
   const [selected, setSelected] = useState<string>(current ? String(current.id) : "");
   const [confirm, setConfirm] = useState<null | { deviceId: number | null; label: string }>(null);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
   const chosen = useMemo(
@@ -36,12 +36,11 @@ export function DeviceAssignControl({
 
   function apply(deviceId: number | null) {
     setConfirm(null);
-    setMsg(null);
     startTransition(async () => {
       const res = await assignDeviceAction(loadId, deviceId);
-      if (res.error) setMsg({ ok: false, text: res.error });
+      if (res.error) toast.error(res.error);
       else {
-        setMsg({ ok: true, text: res.message ?? "Saved." });
+        toast.success(res.message ?? "Saved.");
         router.refresh();
       }
     });
@@ -122,12 +121,6 @@ export function DeviceAssignControl({
       {chosen && changed && chosen.hasGateway && chosen.assignedTo && (
         <p className="mt-2 text-xs text-[var(--color-warning)]">
           {chosen.name} is currently tracking {chosen.assignedTo.ref}. Assigning here will move it.
-        </p>
-      )}
-
-      {msg && (
-        <p className={`mt-3 text-xs ${msg.ok ? "text-[var(--color-success)]" : "text-[var(--color-error)]"}`}>
-          {msg.text}
         </p>
       )}
 

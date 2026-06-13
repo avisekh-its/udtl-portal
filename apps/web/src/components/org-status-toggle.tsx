@@ -1,27 +1,28 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
+import { toast } from "sonner";
 import { setOrgActiveAction } from "@/app/ops/customers/actions";
 
 /** Activate / deactivate a customer organization. */
 export function OrgStatusToggle({ orgId, active }: { orgId: string; active: boolean }) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function toggle() {
-    setError(null);
     startTransition(async () => {
       const result = await setOrgActiveAction(orgId, !active);
-      if (result.error) setError(result.error);
-      else router.refresh();
+      if (result.error) toast.error(result.error);
+      else {
+        toast.success(active ? "Customer deactivated." : "Customer reactivated.");
+        router.refresh();
+      }
     });
   }
 
   return (
     <div className="flex items-center gap-3">
-      {error && <span className="text-xs text-[var(--color-error)]">{error}</span>}
       <button
         type="button"
         onClick={toggle}

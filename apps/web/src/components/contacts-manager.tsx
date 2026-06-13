@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
+import { toast } from "sonner";
 import { addContactAction, removeContactAction } from "@/app/ops/customers/actions";
 
 export interface ContactRow {
@@ -18,18 +19,17 @@ const inputCls =
 
 export function ContactsManager({ orgId, contacts }: { orgId: string; contacts: ContactRow[] }) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function onAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
-    setError(null);
     startTransition(async () => {
       const result = await addContactAction(orgId, formData);
-      if (result.error) setError(result.error);
+      if (result.error) toast.error(result.error);
       else {
+        toast.success("Contact added.");
         form.reset();
         router.refresh();
       }
@@ -39,19 +39,16 @@ export function ContactsManager({ orgId, contacts }: { orgId: string; contacts: 
   function onRemove(contactId: number) {
     startTransition(async () => {
       const result = await removeContactAction(orgId, contactId);
-      if (result.error) setError(result.error);
-      else router.refresh();
+      if (result.error) toast.error(result.error);
+      else {
+        toast.success("Contact removed.");
+        router.refresh();
+      }
     });
   }
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 px-3 py-2 text-sm text-[var(--color-error)]">
-          {error}
-        </div>
-      )}
-
       {contacts.length > 0 && (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">

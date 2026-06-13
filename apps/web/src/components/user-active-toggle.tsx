@@ -1,27 +1,28 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
+import { toast } from "sonner";
 import { setUserActiveAction } from "@/app/ops/users/actions";
 
 /** Activate / deactivate button for a user row. Hidden for the current user. */
 export function UserActiveToggle({ userId, active }: { userId: string; active: boolean }) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function toggle() {
-    setError(null);
     startTransition(async () => {
       const result = await setUserActiveAction(userId, !active);
-      if (result.error) setError(result.error);
-      else router.refresh();
+      if (result.error) toast.error(result.error);
+      else {
+        toast.success(active ? "User deactivated." : "User reactivated.");
+        router.refresh();
+      }
     });
   }
 
   return (
     <div className="flex items-center justify-end gap-2">
-      {error && <span className="text-xs text-[var(--color-error)]">{error}</span>}
       <button
         type="button"
         onClick={toggle}

@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient, createServiceClient } from "@/lib/supabase/server";
 import { KpiCard } from "@/components/kpi-card";
 import { IconBox, IconNavigation, IconCheckCircle, IconAlertTriangle } from "@/components/icons";
 import { DonutChart, type DonutDatum } from "@/components/charts/donut-chart";
-import { VerticalBarChart, type VBarDatum } from "@/components/charts/vertical-bar-chart";
+import { ActivityFeed, type ActivityItem } from "@/components/activity-feed";
 import { MiniTable } from "@/components/mini-table";
 import { StatusChip } from "@/components/status-chip";
 import { LOAD_STATUS_MAP } from "@/components/status-badge";
@@ -18,6 +18,32 @@ const STATUS_COLORS: Record<LoadStatus, string> = {
 };
 const etaFmt = new Intl.DateTimeFormat("en-CA", { dateStyle: "short", timeStyle: "short", timeZone: "America/Winnipeg" });
 const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
+
+const ACTIVITY_META: Record<string, { label: string; tone: string }> = {
+  "load.created": { label: "Load created", tone: "#e85d1c" },
+  "load.updated": { label: "Load updated", tone: "#e85d1c" },
+  "load.status_changed": { label: "Load status changed", tone: "#16a34a" },
+  "load.status_reverted": { label: "Load status reverted", tone: "#f59e0b" },
+  "load.device_assigned": { label: "Tracking device assigned", tone: "#3b82f6" },
+  "load.device_changed": { label: "Tracking device changed", tone: "#3b82f6" },
+  "load.device_cleared": { label: "Tracking device cleared", tone: "#64748b" },
+  "load.am_assigned": { label: "Account manager assigned", tone: "#8b5cf6" },
+  "load.am_cleared": { label: "Account manager cleared", tone: "#64748b" },
+  "fleethunt.synced": { label: "FleetHunt devices synced", tone: "#0891b2" },
+};
+function activityMeta(action: string) {
+  return ACTIVITY_META[action] ?? { label: action.replace(/[._]/g, " ").replace(/^\w/, (c) => c.toUpperCase()), tone: "#94a3b8" };
+}
+function timeAgo(iso: string): string {
+  const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return etaFmt.format(new Date(iso));
+}
 
 interface Row {
   id: number;
@@ -54,13 +80,28 @@ export default async function OpsHome() {
     color: STATUS_COLORS[s],
   })).filter((d) => d.value > 0);
 
-  // Bars — loads by customer
-  const byCustomer = new Map<string, number>();
-  for (const r of rows) byCustomer.set(orgName(r), (byCustomer.get(orgName(r)) ?? 0) + 1);
-  const customerBars: VBarDatum[] = [...byCustomer.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
-    .map(([label, value]) => ({ label, value }));
+  // Recent activity — operational events from the audit log. Service client so
+  // every staff role sees it; limited to non-sensitive load/fleethunt actions.
+  const admin = createServiceClient();
+  const { data: auditData } = await admin
+    .from("audit_log")
+    .select("id, action, created_at, actor:actor_user_id ( email )")
+    .order("created_at", { ascending: false })
+    .limit(80);
+  const activity: ActivityItem[] = (
+    (auditData ?? []) as unknown as {
+      id: number;
+      action: string;
+      created_at: string;
+      actor: { email: string | null } | { email: string | null }[] | null;
+    }[]
+  )
+    .filter((a) => a.action.startsWith("load.") || a.action.startsWith("fleethunt."))
+    .slice(0, 20)
+    .map((a) => {
+      const meta = activityMeta(a.action);
+      return { id: a.id, label: meta.label, tone: meta.tone, actor: one(a.actor)?.email ?? "system", when: timeAgo(a.created_at) };
+    });
 
   // Mini-tables
   const recent = rows.slice(0, 6);
@@ -85,15 +126,19 @@ export default async function OpsHome() {
         <KpiCard label="Delayed alerts" value={0} accent="var(--color-warning)" icon={<IconAlertTriangle />} />
       </div>
 
-      {/* Charts */}
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <div className="card p-5">
+      {/* Charts — equal height on desktop; activity scrolls inside the card if long */}
+      <div className="grid gap-4 lg:h-[440px] lg:grid-cols-2">
+        <div className="card flex flex-col p-5">
           <h3 className="mb-4 text-sm font-semibold text-slate-800">Loads by status</h3>
-          <DonutChart data={donut} unitLabel="total loads" />
+          <div className="flex flex-1 items-center justify-center">
+            <DonutChart data={donut} unitLabel="total loads" />
+          </div>
         </div>
-        <div className="card p-5">
-          <h3 className="mb-5 text-sm font-semibold text-slate-800">Loads by customer</h3>
-          <VerticalBarChart data={customerBars} />
+        <div className="card flex min-h-0 flex-col p-5">
+          <h3 className="mb-4 text-sm font-semibold text-slate-800">Recent activity</h3>
+          <div className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2">
+            <ActivityFeed items={activity} />
+          </div>
         </div>
       </div>
 

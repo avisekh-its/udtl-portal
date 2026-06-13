@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { FormSection, FieldShell, controlClass } from "@/components/form/form-section";
 import { StickyActionBar, CancelLink, PrimaryButton } from "@/components/form/sticky-action-bar";
 import {
@@ -88,7 +89,6 @@ export function LoadForm({
 }) {
   const router = useRouter();
   const [form, setForm] = useState<LoadInput>(initial ?? emptyLoad());
-  const [error, setError] = useState<string | null>(null);
   const [confirmLabels, setConfirmLabels] = useState<string[] | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -126,17 +126,19 @@ export function LoadForm({
     setConfirmLabels(null);
     startTransition(async () => {
       const res = await saveLoadAction(form, loadId);
-      if (res.error) setError(res.error);
-      else if (res.id) router.push(`/ops/loads/${res.id}`);
+      if (res.error) toast.error(res.error);
+      else if (res.id) {
+        toast.success(mode === "create" ? "Load created." : "Load updated.");
+        router.push(`/ops/loads/${res.id}`);
+      }
     });
   }
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     const invalid = validateLoadInput(form);
     if (invalid) {
-      setError(invalid);
+      toast.error(invalid);
       return;
     }
     // Missing-contact rule: confirm before saving if any stop lacks contact/phone.
@@ -150,12 +152,6 @@ export function LoadForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
-      {error && (
-        <div className="rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 px-3 py-2 text-sm text-[var(--color-error)]">
-          {error}
-        </div>
-      )}
-
       <FormSection title="Order details" description="From UDTL's order sheet.">
         <FieldShell label="Customer (Bill To)" htmlFor="organizationId" required>
           <select id="organizationId" value={form.organizationId} onChange={(e) => setField("organizationId", e.target.value)} className={controlClass}>

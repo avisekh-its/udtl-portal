@@ -56,6 +56,54 @@ export interface DataTableProps {
   onRowAction?: (actionKey: string, rowId: string) => Promise<{ error?: string } | void>;
   /** Don't render the kebab for this row id (e.g. the current user). */
   hideActionsForRowId?: string;
+  /** Rows per page (default 25). */
+  initialPageSize?: number;
+}
+
+const PAGE_SIZES = [10, 25, 50, 100];
+const ALL_ROWS = 100000; // "All" sentinel — one page big enough to hold any table
+
+/** Page numbers with ellipses around the current page, e.g. [1,"…",4,5,6,"…",20]. */
+function pageList(current: number, total: number): (number | "…")[] {
+  const pages = new Set<number>([1, total]);
+  for (let p = current - 1; p <= current + 1; p++) if (p >= 1 && p <= total) pages.add(p);
+  const out: (number | "…")[] = [];
+  let prev = 0;
+  for (const p of [...pages].sort((a, b) => a - b)) {
+    if (p - prev > 1) out.push("…");
+    out.push(p);
+    prev = p;
+  }
+  return out;
+}
+
+function PageBtn({
+  children,
+  onClick,
+  disabled,
+  active,
+  label,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      className={`min-w-[28px] rounded-md px-2 py-1 text-xs font-medium tabular-nums transition disabled:cursor-not-allowed disabled:opacity-40 ${
+        active ? "bg-[var(--color-secondary)] text-white" : "text-slate-600 hover:bg-slate-100"
+      }`}
+    >
+      {children}
+    </button>
+  );
 }
 
 function applyTemplate(tpl: string, row: Row): string {
@@ -80,12 +128,15 @@ export function DataTable({
   rowActions = [],
   onRowAction,
   hideActionsForRowId,
+  initialPageSize = 25,
 }: DataTableProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(initialPageSize);
   const [pending, startTransition] = useTransition();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -113,6 +164,16 @@ export function DataTable({
   }, [rows, query, filterValues, searchKeys, filters]);
 
   const hasActions = rowActions.length > 0;
+
+  // Pagination over the filtered set. Reset to page 1 when the result set changes.
+  useEffect(() => {
+    setPage(1);
+  }, [query, filterValues, pageSize]);
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * pageSize;
+  const pageRows = filtered.slice(start, start + pageSize);
 
   function exportCsv() {
     const head = columns.map((c) => c.header);
@@ -214,7 +275,7 @@ export function DataTable({
               {columns.map((c) => (
                 <th
                   key={c.key}
-                  className={`whitespace-nowrap px-4 py-3 ${c.align === "right" ? "text-right" : ""} ${
+                  className={`whitespace-nowrap px-4 py-2.5 ${c.align === "right" ? "text-right" : ""} ${
                     c.sticky ? "sticky left-0 z-10 bg-[#f7f8fa]" : ""
                   }`}
                 >
@@ -238,7 +299,7 @@ export function DataTable({
                 </td>
               </tr>
             ) : (
-              filtered.map((row, i) => {
+              pageRows.map((row, i) => {
                 const rowId = String(row[idKey] ?? i);
                 const zebra = i % 2 === 1 ? "bg-[#fafbfd]" : "bg-white";
                 const visibleActions = rowActions.filter(
@@ -254,7 +315,7 @@ export function DataTable({
                     {columns.map((c) => (
                       <td
                         key={c.key}
-                        className={`whitespace-nowrap px-4 py-3.5 align-middle ${c.align === "right" ? "text-right" : ""} ${
+                        className={`whitespace-nowrap px-4 py-2 align-middle ${c.align === "right" ? "text-right" : ""} ${
                           c.sticky ? "sticky left-0 z-[1] bg-inherit" : ""
                         }`}
                       >
@@ -262,7 +323,7 @@ export function DataTable({
                       </td>
                     ))}
                     {hasActions && (
-                      <td className="relative px-3 py-3 text-right">
+                      <td className="relative px-3 py-2 text-right">
                         {showKebab && (
                           <>
                             <button
@@ -316,14 +377,57 @@ export function DataTable({
         </table>
       </div>
 
-      {filtered.length > 0 && (
-        <div className="flex items-center justify-between border-t border-[var(--color-border)] px-4 py-2.5 text-[11px] text-slate-400">
-          <span className="tabular-nums">
-            {filtered.length === rows.length
-              ? `${rows.length} ${rows.length === 1 ? "record" : "records"}`
-              : `${filtered.length} of ${rows.length}`}
-          </span>
-          {query.trim() && <span>Filtered by “{query.trim()}”</span>}
+      {total > 0 && (
+        <div className="flex flex-col gap-3 border-t border-[var(--color-border)] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
+            <span className="tabular-nums">
+              Showing {start + 1}–{Math.min(start + pageSize, total)} of {total}
+              {total !== rows.length ? ` (filtered from ${rows.length})` : ""}
+            </span>
+            <label className="flex items-center gap-1.5">
+              Rows:
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="rounded-md border border-[var(--color-border)] bg-white px-1.5 py-0.5 text-[11px] text-slate-600 outline-none"
+              >
+                {PAGE_SIZES.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+                <option value={ALL_ROWS}>All</option>
+              </select>
+            </label>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <PageBtn label="First page" onClick={() => setPage(1)} disabled={currentPage === 1}>
+                «
+              </PageBtn>
+              <PageBtn label="Previous page" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                ‹
+              </PageBtn>
+              {pageList(currentPage, totalPages).map((p, idx) =>
+                p === "…" ? (
+                  <span key={`e${idx}`} className="px-1 text-slate-300">
+                    …
+                  </span>
+                ) : (
+                  <PageBtn key={p} active={p === currentPage} onClick={() => setPage(p)}>
+                    {p}
+                  </PageBtn>
+                ),
+              )}
+              <PageBtn label="Next page" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                ›
+              </PageBtn>
+              <PageBtn label="Last page" onClick={() => setPage(totalPages)} disabled={currentPage === totalPages}>
+                »
+              </PageBtn>
+            </div>
+          )}
         </div>
       )}
     </div>

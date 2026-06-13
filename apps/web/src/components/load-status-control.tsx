@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import {
   LOAD_STATUSES,
   LOAD_STATUS_LABELS,
@@ -16,7 +17,6 @@ import { controlClass } from "@/components/form/form-section";
 export function LoadStatusControl({ loadId, current }: { loadId: number; current: LoadStatus }) {
   const router = useRouter();
   const [target, setTarget] = useState<LoadStatus>(current);
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const backward = isBackwardTransition(current, target);
@@ -24,11 +24,13 @@ export function LoadStatusControl({ loadId, current }: { loadId: number; current
   const chip = LOAD_STATUS_MAP[current];
 
   function apply() {
-    setError(null);
     startTransition(async () => {
       const res = await updateLoadStatusAction(loadId, target);
-      if (res.error) setError(res.error);
-      else router.refresh();
+      if (res.error) toast.error(res.error);
+      else {
+        toast.success(`Status updated to ${LOAD_STATUS_LABELS[target]}.`);
+        router.refresh();
+      }
     });
   }
 
@@ -67,7 +69,6 @@ export function LoadStatusControl({ loadId, current }: { loadId: number; current
           <strong>{LOAD_STATUS_LABELS[target]}</strong>. It will be recorded in the audit log as an exception.
         </p>
       )}
-      {error && <p className="mt-3 text-xs text-[var(--color-error)]">{error}</p>}
     </div>
   );
 }

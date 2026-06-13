@@ -2,24 +2,24 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { setCostVisibilityAction } from "@/app/ops/settings/actions";
 
 export function SettingsCostToggle({ initial }: { initial: boolean }) {
   const router = useRouter();
   const [on, setOn] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function toggle() {
     const next = !on;
     setOn(next);
-    setError(null);
     startTransition(async () => {
       const res = await setCostVisibilityAction(next);
       if (res.error) {
         setOn(!next); // revert
-        setError(res.error);
+        toast.error(res.error);
       } else {
+        toast.success(next ? "Cost is now visible to customers." : "Cost is now hidden from customers.");
         router.refresh();
       }
     });
@@ -32,7 +32,6 @@ export function SettingsCostToggle({ initial }: { initial: boolean }) {
         <p className="mt-0.5 text-xs text-slate-500">
           When on, customers can see the cost on their orders. Default is on.
         </p>
-        {error && <p className="mt-1 text-xs text-[var(--color-error)]">{error}</p>}
       </div>
       <button
         type="button"
