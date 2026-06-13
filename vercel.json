@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
+  "buildCommand": "npm run build -w @udtl/web",
+  "installCommand": "npm install",
+  "outputDirectory": "apps/web/.next",
   "regions": ["yul1"],
   "crons": [
     {
