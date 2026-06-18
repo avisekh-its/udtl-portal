@@ -99,6 +99,9 @@ export const IconMap = (p: IconProps) => (
 export const IconPanelLeft = (p: IconProps) => (
   <svg {...base(p)}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
 );
+export const IconClock = (p: IconProps) => (
+  <svg {...base(p)}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+);
 
 export type IconName =
   | "dashboard"
@@ -108,7 +111,8 @@ export type IconName =
   | "truck"
   | "settings"
   | "device"
-  | "map";
+  | "map"
+  | "history";
 
 export const NAV_ICONS: Record<IconName, (p: IconProps) => React.ReactElement> = {
   dashboard: IconDashboard,
@@ -119,4 +123,5 @@ export const NAV_ICONS: Record<IconName, (p: IconProps) => React.ReactElement> =
   settings: IconSettings,
   device: IconDevice,
   map: IconMap,
+  history: IconClock,
 };

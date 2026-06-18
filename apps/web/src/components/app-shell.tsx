@@ -36,7 +36,11 @@ function navFor(user: CurrentUser): NavItem[] {
     }
     return nav;
   }
-  const nav: NavItem[] = [{ label: "Dashboard", href: "/portal", icon: "dashboard", exact: true }];
+  const nav: NavItem[] = [
+    { label: "Dashboard", href: "/portal", icon: "dashboard", exact: true },
+    { label: "Orders", href: "/portal/orders", icon: "truck" },
+    { label: "History", href: "/portal/history", icon: "history" },
+  ];
   if (user.role === "customer_admin") {
     nav.push({ label: "Team", href: "/portal/users", icon: "users" });
   }

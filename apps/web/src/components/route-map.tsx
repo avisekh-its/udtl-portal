@@ -37,7 +37,16 @@ export function dotHtml(color: string, ring: string) {
   return `<span style="display:block;width:18px;height:18px;border-radius:9999px;background:${color};border:2px solid #fff;box-shadow:0 0 0 2px ${ring},0 1px 3px rgba(0,0,0,.4)"></span>`;
 }
 
-export function RouteMap({ stops, truck }: { stops: RouteStopMarker[]; truck?: TruckPos | null }) {
+export function RouteMap({
+  stops,
+  truck,
+  line,
+}: {
+  stops: RouteStopMarker[];
+  truck?: TruckPos | null;
+  /** Road geometry [{lat,lng}…] to draw as the route line. */
+  line?: { lat: number; lng: number }[];
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletNS.Map | null>(null);
 
@@ -54,6 +63,14 @@ export function RouteMap({ stops, truck }: { stops: RouteStopMarker[]; truck?: T
       mapRef.current = map;
 
       const pts: LeafletNS.LatLngExpression[] = [];
+
+      // Route line (drawn first so the pins sit on top).
+      if (line && line.length >= 2) {
+        const latlngs = line.map((p) => [p.lat, p.lng] as [number, number]);
+        L.polyline(latlngs, { color: "#2563eb", weight: 4, opacity: 0.6, lineJoin: "round" }).addTo(map);
+        latlngs.forEach((c) => pts.push(c));
+      }
+
       const deliveries = stops.filter((s) => s.type === "delivery");
       const lastDeliverySeq = deliveries.length ? deliveries[deliveries.length - 1]!.sequence : -1;
 

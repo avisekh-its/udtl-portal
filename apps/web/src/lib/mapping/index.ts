@@ -27,6 +27,8 @@ export interface MappingProvider {
   routeEta(from: LatLng, to: LatLng): Promise<EtaResult | null>;
   reverseGeocode(p: LatLng): Promise<string | null>;
   forwardGeocode(query: string): Promise<LatLng | null>;
+  /** Road geometry through the given waypoints (for drawing the route line). */
+  routeLine(points: LatLng[]): Promise<LatLng[] | null>;
 }
 
 const OSRM_BASE = process.env.OSRM_BASE_URL ?? "https://router.project-osrm.org";
@@ -66,6 +68,9 @@ class MockMappingProvider implements MappingProvider {
   async forwardGeocode(query: string): Promise<LatLng> {
     const hit = CITIES.find((c) => query.toLowerCase().includes(c.name.split(",")[0]!.toLowerCase()));
     return hit ? { lat: hit.lat, lng: hit.lng } : pseudoCoord(query);
+  }
+  async routeLine(points: LatLng[]): Promise<LatLng[] | null> {
+    return points.length >= 2 ? points : null; // straight segments offline
   }
 }
 
@@ -112,6 +117,21 @@ class FreeMappingProvider implements MappingProvider {
       const first = (await res.json())?.[0];
       if (!first) return null;
       return { lat: Number(first.lat), lng: Number(first.lon) };
+    } catch {
+      return null;
+    }
+  }
+
+  async routeLine(points: LatLng[]): Promise<LatLng[] | null> {
+    if (points.length < 2) return null;
+    try {
+      const coords = points.map((p) => `${p.lng},${p.lat}`).join(";");
+      const url = `${OSRM_BASE}/route/v1/driving/${coords}?overview=full&geometries=geojson`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) return null;
+      const geo = (await res.json())?.routes?.[0]?.geometry?.coordinates;
+      if (!Array.isArray(geo)) return null;
+      return geo.map((c: [number, number]) => ({ lat: c[1], lng: c[0] }));
     } catch {
       return null;
     }

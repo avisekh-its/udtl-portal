@@ -9,7 +9,7 @@ import { DeviceAssignControl } from "@/components/device-assign-control";
 import { RouteMap } from "@/components/route-map";
 import { loadFormOptions } from "../form-data";
 import { deviceAssignmentOptions } from "../assignment-data";
-import { loadRouteStops } from "@/lib/tracking/route";
+import { loadRouteStops, loadRouteLine } from "@/lib/tracking/route";
 import type { LoadInput, LoadStatus, StopType, CommodityInput } from "@/lib/loads";
 
 /** datetime-local string from a stored timestamp (kept as wall-clock). */
@@ -156,6 +156,7 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
   const { orgs, accountManagers } = await loadFormOptions();
   const deviceOptions = await deviceAssignmentOptions(load.id);
   const routeStops = await loadRouteStops(load.id);
+  const routeLine = await loadRouteLine(routeStops);
   const truck =
     meta.currentLat != null && meta.currentLng != null && device?.has_gps_gateway !== false
       ? { lat: meta.currentLat, lng: meta.currentLng, place: meta.currentPlace }
@@ -199,7 +200,7 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
               {truck && <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[var(--color-secondary)]" /> Truck</span>}
             </div>
           </div>
-          <RouteMap stops={routeStops} truck={truck} />
+          <RouteMap stops={routeStops} truck={truck} line={routeLine} />
         </div>
       )}
 

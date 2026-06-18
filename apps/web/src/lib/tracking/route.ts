@@ -57,3 +57,11 @@ export async function loadRouteStops(loadId: number): Promise<RouteStop[]> {
   }
   return out;
 }
+
+/** Road geometry through a load's stops (for drawing the route line on the map). */
+export async function loadRouteLine(stops: { lat: number; lng: number }[]): Promise<{ lat: number; lng: number }[]> {
+  if (stops.length < 2) return [];
+  const mapper = getMappingProvider();
+  const line = await mapper.routeLine(stops.map((s) => ({ lat: s.lat, lng: s.lng })));
+  return line ?? [];
+}

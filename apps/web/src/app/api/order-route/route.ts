@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser, can } from "@/lib/auth";
-import { loadRouteStops } from "@/lib/tracking/route";
+import { loadRouteStops, loadRouteLine } from "@/lib/tracking/route";
 
 /**
  * Stops (pickup → consignees) for one load, for the ops-map focus overlay.
@@ -17,5 +17,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Bad loadId." }, { status: 400 });
   }
   const stops = await loadRouteStops(id);
-  return NextResponse.json({ stops });
+  const line = await loadRouteLine(stops);
+  return NextResponse.json({ stops, line });
 }

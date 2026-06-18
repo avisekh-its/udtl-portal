@@ -162,11 +162,18 @@ export function LiveMap({
 
     const res = (await fetch(`/api/order-route?loadId=${Number(key.slice(1))}`)
       .then((r) => r.json())
-      .catch(() => null)) as { stops?: RouteStopLite[] } | null;
+      .catch(() => null)) as { stops?: RouteStopLite[]; line?: { lat: number; lng: number }[] } | null;
     const stops = res?.stops;
     if (!stops || stops.length === 0) return;
 
     const pts: LeafletNS.LatLngExpression[] = [];
+
+    // Route line (under the pins).
+    if (res?.line && res.line.length >= 2) {
+      const latlngs = res.line.map((p) => [p.lat, p.lng] as [number, number]);
+      L.polyline(latlngs, { color: "#2563eb", weight: 4, opacity: 0.6, lineJoin: "round" }).addTo(routeLayer);
+      latlngs.forEach((c) => pts.push(c));
+    }
     const deliveries = stops.filter((s) => s.type === "delivery");
     const lastDeliverySeq = deliveries.length ? deliveries[deliveries.length - 1]!.sequence : -1;
     for (const s of stops) {
