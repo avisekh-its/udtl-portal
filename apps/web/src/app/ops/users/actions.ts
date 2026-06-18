@@ -76,7 +76,7 @@ export async function inviteUserAction(formData: FormData): Promise<InviteResult
 
   const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=/account/set-password`,
+    redirectTo: `${origin}/auth/confirm?next=/account/set-password`,
   });
   if (error || !data?.user) {
     return { error: error?.message ?? "Could not send the invite." };

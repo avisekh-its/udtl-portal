@@ -19,7 +19,7 @@ export async function requestResetAction(formData: FormData): Promise<ResetReque
   const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const supabase = await createServerClient();
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=/account/set-password`,
+    redirectTo: `${origin}/auth/confirm?next=/account/set-password`,
   });
 
   return { ok: true };
