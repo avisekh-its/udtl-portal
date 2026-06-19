@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createBrowserClient } from "@supabase/ssr";
 import type { EmailOtpType } from "@supabase/supabase-js";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { BrandMark } from "@/components/brand-mark";
 
 /**
@@ -37,44 +37,59 @@ export default function AuthConfirmPage() {
     const tokenHash = query.get("token_hash");
     const otpType = query.get("type") as EmailOtpType | null;
 
-    const supabase = createSupabaseBrowserClient();
+    // Dedicated client with detectSessionInUrl DISABLED. The default browser
+    // client auto-processes the hash on construction, which raced with our
+    // explicit exchange below and sometimes spent the one-time token first
+    // (→ "link expired"). Here we are the single source of truth.
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { detectSessionInUrl: false } },
+    );
 
     (async () => {
       try {
         if (hashError) throw new Error(hashError);
 
         // Establish the session from whichever form the email link delivered:
-        //   1. detectSessionInUrl may already have consumed the hash.
-        //   2. #access_token/#refresh_token — implicit flow (default Supabase
-        //      template, {{ .ConfirmationURL }} → verify → hash redirect).
-        //   3. ?token_hash&type — PKCE/OTP flow (custom template, {{ .TokenHash }}).
-        //   4. ?code — PKCE exchange.
-        let session = (await supabase.auth.getSession()).data.session;
-        if (!session && accessToken && refreshToken) {
+        //   - #access_token/#refresh_token — implicit flow (default Supabase
+        //     template, {{ .ConfirmationURL }} → verify → hash redirect).
+        //   - ?token_hash&type — PKCE/OTP flow (custom template, {{ .TokenHash }}).
+        //   - ?code — PKCE exchange.
+        if (accessToken && refreshToken) {
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
           if (error) throw error;
-          session = (await supabase.auth.getSession()).data.session;
-        } else if (!session && tokenHash && otpType) {
+        } else if (tokenHash && otpType) {
           const { error } = await supabase.auth.verifyOtp({ type: otpType, token_hash: tokenHash });
           if (error) throw error;
-          session = (await supabase.auth.getSession()).data.session;
-        } else if (!session && code) {
+        } else if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
-          session = (await supabase.auth.getSession()).data.session;
+        } else {
+          throw new Error("no credentials in link");
         }
-        if (!session) throw new Error("no session");
 
-        // The @supabase/ssr browser client flushes the auth cookie
-        // asynchronously. Wait until it's actually written so the server-side
-        // navigation target can read the session (otherwise middleware bounces
-        // us back to /login). Then hard-navigate so the server picks it up.
-        for (let i = 0; i < 30 && !document.cookie.includes("-auth-token"); i++) {
+        // The auth cookie is written async and (for large sessions) chunked.
+        // Before navigating to a protected route, confirm the SERVER actually
+        // sees the session — otherwise middleware bounces us to /login before
+        // the cookie is readable. Poll a lightweight server probe.
+        let serverReady = false;
+        for (let i = 0; i < 50; i++) {
+          try {
+            if ((await fetch("/api/auth/check", { cache: "no-store" })).ok) {
+              serverReady = true;
+              break;
+            }
+          } catch {
+            /* keep polling */
+          }
           await new Promise((r) => setTimeout(r, 100));
         }
+        if (!serverReady) throw new Error("session not established server-side");
+
         window.location.replace(next);
       } catch {
         setFailed(true);
