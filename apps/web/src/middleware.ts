@@ -94,7 +94,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && pathname === "/login") {
+  // Send an already-signed-in user away from /login to their dashboard — UNLESS
+  // we deliberately routed them here with an error (e.g. an inactive/credit-
+  // pending user whose session still exists). Bouncing those back into the app
+  // would loop them: /login -> / -> /portal -> requireUser -> /login -> …
+  if (user && pathname === "/login" && !request.nextUrl.searchParams.has("error")) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

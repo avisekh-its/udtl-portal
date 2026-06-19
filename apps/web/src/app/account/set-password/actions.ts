@@ -56,7 +56,13 @@ export async function setPasswordAction(formData: FormData): Promise<SetPassword
     ip: await getRequestIp(),
   });
 
-  // If still awaiting the credit form, they can't use the app yet.
-  if (!activate) redirect("/login?error=credit_pending");
+  // If still awaiting the credit form, they can't use the app yet. Sign them
+  // out so no session lingers — otherwise the middleware would keep bouncing
+  // them off /login back into /portal (which rejects inactive users), causing
+  // a redirect loop / flicker. With no session they land cleanly on login.
+  if (!activate) {
+    await supabase.auth.signOut();
+    redirect("/login?error=credit_pending");
+  }
   redirect("/");
 }
