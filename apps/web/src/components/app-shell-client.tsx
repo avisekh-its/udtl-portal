@@ -36,6 +36,7 @@ export function AppShellClient({
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notifsOpen, setNotifsOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
   // Restore + persist the desktop rail preference.
@@ -50,7 +51,25 @@ export function AppShellClient({
   useEffect(() => {
     setMobileOpen(false);
     setProfileOpen(false);
+    setNotifsOpen(false);
   }, [pathname]);
+
+  // Demo notifications — tailored to the area (customer portal vs ops console).
+  const isPortal = area.toLowerCase().includes("portal");
+  const notifications = isPortal
+    ? [
+        { title: "Shipment delivered", body: "Order LC26061045 (Toronto → Calgary) was delivered.", time: "2h ago", unread: true, tone: "#2e9e5b" },
+        { title: "Now in transit", body: "LC26062051 is on its way to Vancouver.", time: "5h ago", unread: true, tone: "#2563eb" },
+        { title: "ETA updated", body: "New ETA for LC26062051 — Jun 21, 1:00 p.m.", time: "1d ago", unread: false, tone: "var(--color-secondary)" },
+        { title: "Welcome to UDTL", body: "Your account is active — track shipments in real time.", time: "3d ago", unread: false, tone: "#94a3b8" },
+      ]
+    : [
+        { title: "Order imported", body: "LC26062177 was added for Globex Freight.", time: "12m ago", unread: true, tone: "var(--color-secondary)" },
+        { title: "Device assigned", body: "A tracking device was linked to UDTL-A1.", time: "1h ago", unread: true, tone: "#2563eb" },
+        { title: "Delivery completed", body: "UDTL-D04 was delivered to Saskatoon.", time: "3h ago", unread: false, tone: "#2e9e5b" },
+        { title: "Credit application pending", body: "A new customer user is awaiting credit approval.", time: "1d ago", unread: false, tone: "#d97706" },
+      ];
+  const unreadCount = notifications.filter((n) => n.unread).length;
 
   function isActive(item: NavItem) {
     if (item.exact) return pathname === item.href;
@@ -158,17 +177,70 @@ export function AppShellClient({
 
           <div className="ml-auto flex items-center gap-2">
             {/* Notifications */}
-            <button
-              type="button"
-              className="relative grid h-9 w-9 place-items-center rounded-lg border border-[var(--color-border)] bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
-              aria-label="Notifications"
-            >
-              <IconBell className="h-[18px] w-[18px]" />
-              <span className="absolute right-1.5 top-1.5 flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-secondary)] opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-secondary)] ring-2 ring-white" />
-              </span>
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setNotifsOpen((v) => !v);
+                  setProfileOpen(false);
+                }}
+                className="relative grid h-9 w-9 place-items-center rounded-lg border border-[var(--color-border)] bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+                aria-label="Notifications"
+                aria-expanded={notifsOpen}
+              >
+                <IconBell className="h-[18px] w-[18px]" />
+                {unreadCount > 0 && (
+                  <span className="absolute right-1.5 top-1.5 flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-secondary)] opacity-60" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-secondary)] ring-2 ring-white" />
+                  </span>
+                )}
+              </button>
+
+              {notifsOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setNotifsOpen(false)} />
+                  <div className="absolute right-0 z-20 mt-2 w-80 overflow-hidden rounded-xl border border-[var(--color-border)] bg-white shadow-xl">
+                    <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[#f7f8fa] px-4 py-3">
+                      <span className="text-sm font-semibold text-slate-800">Notifications</span>
+                      {unreadCount > 0 && (
+                        <span className="inline-flex items-center rounded-full bg-[var(--color-secondary)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-secondary)]">
+                          {unreadCount} new
+                        </span>
+                      )}
+                    </div>
+                    <div className="max-h-[20rem] divide-y divide-[var(--color-border)] overflow-y-auto">
+                      {notifications.map((n, i) => (
+                        <div
+                          key={i}
+                          className={`flex gap-3 px-4 py-3 transition hover:bg-slate-50 ${n.unread ? "bg-[var(--color-secondary)]/[0.03]" : ""}`}
+                        >
+                          <span
+                            className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                            style={{ background: n.tone }}
+                            aria-hidden
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="truncate text-sm font-medium text-slate-800">{n.title}</span>
+                              <span className="shrink-0 text-[11px] text-slate-400">{n.time}</span>
+                            </div>
+                            <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{n.body}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNotifsOpen(false)}
+                      className="block w-full border-t border-[var(--color-border)] px-4 py-2.5 text-center text-xs font-medium text-[var(--color-secondary)] transition hover:bg-slate-50"
+                    >
+                      View all notifications
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
 
             <span className="hidden h-7 w-px bg-[var(--color-border)] sm:block" />
 
