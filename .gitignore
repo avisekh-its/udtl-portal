@@ -44,3 +44,5 @@ coverage/
 
 # internal docs — not for the repo
 docs/
+DEMO.md
+email-templates/

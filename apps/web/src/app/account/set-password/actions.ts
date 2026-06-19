@@ -36,14 +36,21 @@ export async function setPasswordAction(formData: FormData): Promise<SetPassword
 
   const { data: profile } = await supabase
     .from("users")
-    .select("credit_form_required, credit_form_received")
+    .select("active, credit_form_required, credit_form_received")
     .eq("id", user.id)
     .single();
+  // Fail CLOSED: if we can't read the profile, don't risk activating past the
+  // credit gate — treat it as an invalid link rather than defaulting to active.
+  if (!profile) return { error: "Your link has expired. Please request a new one." };
 
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: error.message };
 
-  const activate = !profile?.credit_form_required || !!profile?.credit_form_received;
+  // Activate on the FIRST set when the credit gate is clear. Crucially, never
+  // DOWNGRADE an already-active user — a routine password reset must not
+  // deactivate a working customer whose credit was handled out-of-band.
+  const activate =
+    profile.active || !profile.credit_form_required || !!profile.credit_form_received;
   const admin = createServiceClient();
   await admin.from("users").update({ active: activate }).eq("id", user.id);
 
