@@ -2,17 +2,31 @@ import Image from "next/image";
 import { LoginForm } from "./login-form";
 import { BrandMark } from "@/components/brand-mark";
 
-const ERROR_MESSAGES: Record<string, string> = {
-  inactive: "Your account is disabled. Please contact your administrator.",
-  timeout: "You were signed out after a period of inactivity. Please sign in again.",
-  link: "That link is invalid. Please request a new one.",
-  link_expired: "That link has expired. Please request a new one.",
-  sso: "Single sign-on failed. Please try again or use your password.",
-  sso_provider: "That sign-in provider isn't available.",
-  sso_no_account:
-    "No account exists for that email yet. Sign in with your email and password first — single sign-on works once your account is set up.",
-  credit_pending:
-    "Your password is set. Your account will be activated once UDTL receives your completed credit application.",
+type MessageTone = "error" | "success" | "info";
+
+const MESSAGES: Record<string, { text: string; tone: MessageTone }> = {
+  inactive: {
+    text: "Your account is disabled. Please contact your administrator.",
+    tone: "error",
+  },
+  timeout: {
+    text: "You were signed out after a period of inactivity. Please sign in again.",
+    tone: "info",
+  },
+  link: { text: "That link is invalid. Please request a new one.", tone: "error" },
+  link_expired: { text: "That link has expired. Please request a new one.", tone: "error" },
+  sso: { text: "Single sign-on failed. Please try again or use your password.", tone: "error" },
+  sso_provider: { text: "That sign-in provider isn't available.", tone: "error" },
+  sso_no_account: {
+    text: "No account exists for that email yet. Sign in with your email and password first — single sign-on works once your account is set up.",
+    tone: "error",
+  },
+  // Positive confirmation — the password was set successfully; activation is
+  // just pending. Shown as a success notice, not a red error.
+  credit_pending: {
+    text: "Your password is set. Your account will be activated once UDTL receives your completed credit application.",
+    tone: "success",
+  },
 };
 
 export default async function LoginPage({
@@ -21,7 +35,7 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  const initialError = error ? ERROR_MESSAGES[error] : undefined;
+  const notice = error ? MESSAGES[error] : undefined;
 
   return (
     <main className="grid min-h-screen md:grid-cols-2">
@@ -42,7 +56,7 @@ export default async function LoginPage({
               </p>
             </div>
 
-            <LoginForm initialError={initialError} />
+            <LoginForm initialMessage={notice?.text} initialTone={notice?.tone} />
           </div>
 
           <p className="mt-6 text-center text-xs text-slate-400">

@@ -9,18 +9,35 @@ import { IconMail, IconLock, IconEye, IconEyeOff } from "@/components/icons";
 // buttons; otherwise they render as disabled "soon" placeholders.
 const ssoEnabled = process.env.NEXT_PUBLIC_SSO_ENABLED === "true";
 
-export function LoginForm({ initialError }: { initialError?: string }) {
-  const [error, setError] = useState<string | null>(initialError ?? null);
+type MessageTone = "error" | "success" | "info";
+
+const TONE_STYLES: Record<MessageTone, string> = {
+  error: "border-[var(--color-error)]/30 bg-[var(--color-error)]/5 text-[var(--color-error)]",
+  success: "border-[var(--color-success)]/30 bg-[var(--color-success)]/8 text-[var(--color-success)]",
+  info: "border-[var(--color-secondary)]/30 bg-[var(--color-secondary)]/8 text-[var(--color-secondary)]",
+};
+
+export function LoginForm({
+  initialMessage,
+  initialTone = "error",
+}: {
+  initialMessage?: string;
+  initialTone?: MessageTone;
+}) {
+  const [message, setMessage] = useState<{ text: string; tone: MessageTone } | null>(
+    initialMessage ? { text: initialMessage, tone: initialTone } : null,
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    setError(null);
+    setMessage(null);
     startTransition(async () => {
       const result = await signInAction(formData);
-      if (result?.error) setError(result.error);
+      // A failed sign-in is always an error.
+      if (result?.error) setMessage({ text: result.error, tone: "error" });
     });
   }
 
@@ -32,12 +49,12 @@ export function LoginForm({ initialError }: { initialError?: string }) {
   return (
     <div className="space-y-5">
       <form onSubmit={onSubmit} className="space-y-4">
-        {error && (
+        {message && (
           <div
-            role="alert"
-            className="rounded-lg border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 px-3 py-2 text-sm text-[var(--color-error)]"
+            role={message.tone === "error" ? "alert" : "status"}
+            className={`rounded-lg border px-3 py-2 text-sm ${TONE_STYLES[message.tone]}`}
           >
-            {error}
+            {message.text}
           </div>
         )}
         <div className="space-y-1.5">
