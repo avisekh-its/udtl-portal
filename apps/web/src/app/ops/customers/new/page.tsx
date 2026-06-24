@@ -14,7 +14,8 @@ export default async function NewCustomerPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">New customer</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Add the company. You can add additional contacts after creating it.
+          Add the company and its primary contact. After saving, you can invite that contact as the
+          Customer Admin in one step.
         </p>
       </div>
       <OrgForm mode="create" />

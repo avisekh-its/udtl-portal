@@ -6,6 +6,13 @@ import { OrgForm } from "@/components/org-form";
 import { OrgStatusToggle } from "@/components/org-status-toggle";
 import { ContactsManager, type ContactRow } from "@/components/contacts-manager";
 import { UsersTable, type UserRow } from "@/components/users-table";
+import { InviteForm, type RoleOption } from "@/components/invite-form";
+
+/** This customer's users are invited here (Customer Admin / Customer User), scoped to this org. */
+const CUSTOMER_ROLE_OPTIONS: RoleOption[] = [
+  { value: "customer_admin", label: "Customer Admin", isCustomer: true },
+  { value: "customer_user", label: "Customer User", isCustomer: true },
+];
 
 /** Edit a customer org: profile, status, additional contacts, and its users. */
 export default async function CustomerDetailPage({
@@ -79,13 +86,21 @@ export default async function CustomerDetailPage({
         <ContactsManager orgId={org.id} contacts={(contacts ?? []) as ContactRow[]} />
       </section>
 
-      <UsersTable
-        title="Users at this customer"
-        users={(users ?? []) as UserRow[]}
-        orgNames={{ [org.id]: org.name }}
-        manage
-        currentUserId={actor.id}
-      />
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-slate-700">Team</h2>
+        <InviteForm
+          roleOptions={CUSTOMER_ROLE_OPTIONS}
+          orgs={[]}
+          lockedOrgId={org.id}
+        />
+        <UsersTable
+          title="Users at this customer"
+          users={(users ?? []) as UserRow[]}
+          orgNames={{ [org.id]: org.name }}
+          manage
+          currentUserId={actor.id}
+        />
+      </section>
     </div>
   );
 }

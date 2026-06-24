@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCurrentUser, can } from "@/lib/auth";
 import { getRequestIp, writeAudit } from "@/lib/audit";
+import { inviteUserAction } from "@/app/ops/users/actions";
 
 export interface OrgActionResult {
   ok?: boolean;
@@ -44,6 +45,11 @@ export async function createOrgAction(formData: FormData): Promise<OrgActionResu
 
   const fields = readOrgFields(formData);
   if (!fields.name) return { error: "Company name is required." };
+  // Email is required so we can invite the primary contact (Customer Admin)
+  // as part of onboarding.
+  if (!fields.primary_contact_email) {
+    return { error: "A primary contact email is required." };
+  }
 
   const admin = createServiceClient();
   const { data, error } = await admin
@@ -99,21 +105,57 @@ export async function setOrgActiveAction(orgId: string, active: boolean): Promis
   if (!actor) return { error: "You don't have permission to manage customers." };
 
   const admin = createServiceClient();
+  const nowIso = new Date().toISOString();
   const { error } = await admin
     .from("organizations")
-    .update({ active, updated_at: new Date().toISOString() })
+    .update({ active, updated_at: nowIso })
     .eq("id", orgId);
   if (error) return { error: error.message };
+
+  // Cascade to every user in the org: deactivating a customer must lock out all
+  // its users (no unauthorized access); reactivating brings them back together.
+  const { error: cascadeErr } = await admin
+    .from("users")
+    .update({ active, updated_at: nowIso })
+    .eq("organization_id", orgId);
+  if (cascadeErr) return { error: cascadeErr.message };
 
   await writeAudit({
     actorUserId: actor.id,
     action: active ? "org.reactivated" : "org.deactivated",
     entityType: "organization",
     entityId: orgId,
+    after: { active, cascadedToUsers: true },
     ip: await getRequestIp(),
   });
 
   revalidatePath("/ops/customers");
+  revalidatePath(`/ops/customers/${orgId}`);
+  revalidatePath("/ops/users");
+  return { ok: true, id: orgId };
+}
+
+/**
+ * Invite the primary contact as this org's Customer Admin. Part of the
+ * streamlined onboarding (create customer → invite). No credit-application gate
+ * here — the invited admin activates as soon as they set their password.
+ */
+export async function inviteOrgAdminAction(orgId: string, email: string): Promise<OrgActionResult> {
+  const actor = await requireOrgManager();
+  if (!actor) return { error: "You don't have permission to manage customers." };
+
+  const clean = email.trim().toLowerCase();
+  if (!clean) return { error: "An email is required to send the invite." };
+
+  // Reuse the canonical invite path (permission checks, Supabase invite, profile
+  // row, audit). No `creditForm` field → activates on password set.
+  const fd = new FormData();
+  fd.set("email", clean);
+  fd.set("role", "customer_admin");
+  fd.set("organizationId", orgId);
+  const res = await inviteUserAction(fd);
+  if (res.error) return { error: res.error };
+
   revalidatePath(`/ops/customers/${orgId}`);
   return { ok: true, id: orgId };
 }
