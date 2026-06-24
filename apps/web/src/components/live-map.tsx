@@ -9,7 +9,7 @@ import "leaflet/dist/leaflet.css";
 import type * as LeafletNS from "leaflet";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { pinHtml } from "@/components/route-map";
+import { pinHtml, truckHtml } from "@/components/route-map";
 
 interface RouteStopLite { sequence: number; type: string; name: string | null; city: string | null; lat: number; lng: number }
 
@@ -46,10 +46,6 @@ const fmt = new Intl.DateTimeFormat("en-CA", {
 });
 const time = (iso: string | null) => (iso ? fmt.format(new Date(iso)) : "—");
 const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
-
-function dot(color: string, ring: string) {
-  return `<span style="display:block;width:16px;height:16px;border-radius:9999px;background:${color};border:2px solid #fff;box-shadow:0 0 0 1.5px ${ring},0 1px 3px rgba(0,0,0,.4)"></span>`;
-}
 
 export function LiveMap({
   orders,
@@ -109,7 +105,7 @@ export function LiveMap({
 
     if (view === "orders") {
       for (const o of orders) {
-        const icon = L.divIcon({ className: "", html: dot("#e85d1c", "#c44c12"), iconSize: [16, 16], iconAnchor: [8, 8] });
+        const icon = L.divIcon({ className: "", html: truckHtml("#e85d1c"), iconSize: [28, 28], iconAnchor: [14, 14] });
         const m = L.marker([o.lat, o.lng], { icon }).bindPopup(
           `<div style="font:13px system-ui;min-width:180px">
             <div style="font-weight:600;color:#1a1a1a">${esc(o.ref)}</div>
@@ -127,7 +123,7 @@ export function LiveMap({
     } else {
       for (const d of devices) {
         const color = d.assignedRef ? "#2563eb" : "#64748b";
-        const icon = L.divIcon({ className: "", html: dot(color, "#1e293b"), iconSize: [16, 16], iconAnchor: [8, 8] });
+        const icon = L.divIcon({ className: "", html: truckHtml(color), iconSize: [28, 28], iconAnchor: [14, 14] });
         const m = L.marker([d.lat, d.lng], { icon }).bindPopup(
           `<div style="font:13px system-ui;min-width:170px">
             <div style="font-weight:600;color:#1a1a1a">${esc(d.name)}</div>

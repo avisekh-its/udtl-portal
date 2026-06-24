@@ -32,9 +32,18 @@ export function pinHtml(bg: string, label: string) {
     <span style="position:absolute;top:3px;left:0;width:24px;text-align:center;color:#fff;font:700 11px system-ui">${label}</span>
   </div>`;
 }
-/** Round dot (live truck). */
+/** Round dot (kept for non-truck uses). */
 export function dotHtml(color: string, ring: string) {
   return `<span style="display:block;width:18px;height:18px;border-radius:9999px;background:${color};border:2px solid #fff;box-shadow:0 0 0 2px ${ring},0 1px 3px rgba(0,0,0,.4)"></span>`;
+}
+/** Live-truck marker: a truck glyph in a brand-orange badge. */
+export function truckHtml(bg = "#e85d1c") {
+  return `<div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9999px;background:${bg};border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1"/>
+      <circle cx="7.5" cy="17.5" r="1.5"/><circle cx="17.5" cy="17.5" r="1.5"/>
+    </svg>
+  </div>`;
 }
 
 export function RouteMap({
@@ -88,7 +97,7 @@ export function RouteMap({
       });
 
       if (truck) {
-        const icon = L.divIcon({ className: "", html: dotHtml("#e85d1c", "#c44c12"), iconSize: [18, 18], iconAnchor: [9, 9] });
+        const icon = L.divIcon({ className: "", html: truckHtml("#e85d1c"), iconSize: [28, 28], iconAnchor: [14, 14] });
         L.marker([truck.lat, truck.lng], { icon })
           .bindPopup(`<div style="font:13px system-ui"><b>Truck</b><br>${esc(truck.place || "Current position")}</div>`)
           .addTo(map);
