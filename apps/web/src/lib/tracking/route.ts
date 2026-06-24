@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getMappingProvider } from "@/lib/mapping";
 
@@ -58,10 +59,25 @@ export async function loadRouteStops(loadId: number): Promise<RouteStop[]> {
   return out;
 }
 
-/** Road geometry through a load's stops (for drawing the route line on the map). */
-export async function loadRouteLine(stops: { lat: number; lng: number }[]): Promise<{ lat: number; lng: number }[]> {
+/**
+ * Road geometry through a load's stops (for drawing the route line on the map).
+ *
+ * The route between a load's (fixed) stops is static, so we CACHE the routing
+ * provider's response keyed by the stop coordinates — the map redraws on every
+ * view, but OSRM is only called once per unique route (then served from cache
+ * for 24h). If the stops change, the coordinate key changes and we recompute.
+ */
+export async function loadRouteLine(
+  stops: { lat: number; lng: number }[],
+): Promise<{ lat: number; lng: number }[]> {
   if (stops.length < 2) return [];
-  const mapper = getMappingProvider();
-  const line = await mapper.routeLine(stops.map((s) => ({ lat: s.lat, lng: s.lng })));
-  return line ?? [];
+  const pts = stops.map((s) => ({ lat: s.lat, lng: s.lng }));
+  // 4-decimal precision (~11m) — enough to identify a route, stable across calls.
+  const key = pts.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join("|");
+  const cached = unstable_cache(
+    async () => (await getMappingProvider().routeLine(pts)) ?? [],
+    ["route-line", key],
+    { revalidate: 60 * 60 * 24, tags: ["route-line"] },
+  );
+  return cached();
 }
