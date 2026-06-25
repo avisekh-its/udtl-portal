@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setPasswordAction } from "./actions";
+import { setPasswordAction, finishCreditOnboardingAction } from "./actions";
 import { PASSWORD_MIN_LENGTH, PASSWORD_RULES, validatePassword } from "@/lib/password";
 
 export function SetPasswordForm() {
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [pending, startTransition] = useTransition();
+  // Mandatory credit-application download gate (shown after password set when
+  // the account is Awaiting Credit).
+  const [awaitingCredit, setAwaitingCredit] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
+  const [finishing, startFinishing] = useTransition();
 
   const check = validatePassword(password);
 
@@ -23,11 +28,48 @@ export function SetPasswordForm() {
     startTransition(async () => {
       const result = await setPasswordAction(formData);
       if (result?.error) setError(result.error);
+      else if (result?.awaitingCredit) setAwaitingCredit(true);
     });
   }
 
   const inputCls =
     "w-full rounded-lg border border-[var(--color-border)] px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-[var(--color-secondary)] focus:ring-2 focus:ring-[var(--color-secondary)]/20 disabled:opacity-60";
+
+  // Mandatory-download gate: the user must download the credit application
+  // before they can continue.
+  if (awaitingCredit) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border border-[var(--color-success)]/30 bg-[var(--color-success)]/8 px-3 py-2.5 text-sm text-[var(--color-success)]">
+          Your password is set.
+        </div>
+        <div className="rounded-lg border border-[var(--color-secondary)]/30 bg-[var(--color-secondary)]/5 p-4 text-sm">
+          <p className="font-medium text-slate-800">One more step — download the credit application</p>
+          <p className="mt-1 text-slate-600">
+            Your account is <strong>Awaiting Credit</strong>. Download UDTL&apos;s credit application,
+            complete it, and return it to UDTL. Your account activates once our team confirms it&apos;s
+            received. We&apos;ve also emailed you a copy.
+          </p>
+          <a
+            href="/credit-application.pdf"
+            download
+            onClick={() => setDownloaded(true)}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-secondary)] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[var(--color-secondary-700)]"
+          >
+            Download credit application (PDF)
+          </a>
+        </div>
+        <button
+          type="button"
+          disabled={!downloaded || finishing}
+          onClick={() => startFinishing(() => finishCreditOnboardingAction())}
+          className="w-full rounded-lg bg-[var(--color-secondary)] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--color-secondary-700)] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {finishing ? "Continuing…" : downloaded ? "Continue" : "Download the application to continue"}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">

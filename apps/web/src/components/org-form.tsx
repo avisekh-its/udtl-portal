@@ -40,6 +40,7 @@ export function OrgForm({
   // After a successful create we prompt to invite the primary contact.
   const [invitePrompt, setInvitePrompt] = useState<{ orgId: string; email: string } | null>(null);
   const [inviting, setInviting] = useState(false);
+  const [requireCredit, setRequireCredit] = useState(false);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -80,7 +81,7 @@ export function OrgForm({
   function sendInvite() {
     if (!invitePrompt) return;
     setInviting(true);
-    inviteOrgAdminAction(invitePrompt.orgId, invitePrompt.email).then((res) => {
+    inviteOrgAdminAction(invitePrompt.orgId, invitePrompt.email, requireCredit).then((res) => {
       setInviting(false);
       if (res.error) {
         toast.error(res.error);
@@ -156,6 +157,18 @@ export function OrgForm({
             <span className="font-medium text-slate-800">{invitePrompt.email}</span> so they can set
             up their Customer Admin account and access the portal.
           </p>
+          <label className="mt-4 flex items-start gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={requireCredit}
+              onChange={(e) => setRequireCredit(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-[var(--color-secondary)]"
+            />
+            <span>
+              Require credit application — the account stays{" "}
+              <strong>Awaiting Credit</strong> until staff confirm it&apos;s received.
+            </span>
+          </label>
           <div className="mt-5 flex justify-end gap-2">
             <button
               type="button"

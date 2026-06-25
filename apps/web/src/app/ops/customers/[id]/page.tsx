@@ -92,6 +92,7 @@ export default async function CustomerDetailPage({
           roleOptions={CUSTOMER_ROLE_OPTIONS}
           orgs={[]}
           lockedOrgId={org.id}
+          allowCreditForm
         />
         <UsersTable
           title="Users at this customer"

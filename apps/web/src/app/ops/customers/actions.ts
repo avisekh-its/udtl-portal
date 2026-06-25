@@ -140,7 +140,11 @@ export async function setOrgActiveAction(orgId: string, active: boolean): Promis
  * streamlined onboarding (create customer → invite). No credit-application gate
  * here — the invited admin activates as soon as they set their password.
  */
-export async function inviteOrgAdminAction(orgId: string, email: string): Promise<OrgActionResult> {
+export async function inviteOrgAdminAction(
+  orgId: string,
+  email: string,
+  requireCredit = false,
+): Promise<OrgActionResult> {
   const actor = await requireOrgManager();
   if (!actor) return { error: "You don't have permission to manage customers." };
 
@@ -148,11 +152,13 @@ export async function inviteOrgAdminAction(orgId: string, email: string): Promis
   if (!clean) return { error: "An email is required to send the invite." };
 
   // Reuse the canonical invite path (permission checks, Supabase invite, profile
-  // row, audit). No `creditForm` field → activates on password set.
+  // row, audit). With `creditForm` the account stays "Awaiting Credit" until
+  // staff confirm receipt; without it, the admin activates on password set.
   const fd = new FormData();
   fd.set("email", clean);
   fd.set("role", "customer_admin");
   fd.set("organizationId", orgId);
+  if (requireCredit) fd.set("creditForm", "on");
   const res = await inviteUserAction(fd);
   if (res.error) return { error: res.error };
 

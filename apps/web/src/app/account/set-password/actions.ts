@@ -4,9 +4,12 @@ import { redirect } from "next/navigation";
 import { createServerClient, createServiceClient } from "@/lib/supabase/server";
 import { validatePassword } from "@/lib/password";
 import { getRequestIp, writeAudit } from "@/lib/audit";
+import { sendCreditApplicationEmail } from "@/lib/email/sendgrid";
 
 export interface SetPasswordResult {
   error?: string;
+  /** Account is set but still awaiting the credit application (mandatory-download gate). */
+  awaitingCredit?: boolean;
 }
 
 /**
@@ -36,7 +39,7 @@ export async function setPasswordAction(formData: FormData): Promise<SetPassword
 
   const { data: profile } = await supabase
     .from("users")
-    .select("active, credit_form_required, credit_form_received")
+    .select("active, credit_form_required, credit_form_received, name, email")
     .eq("id", user.id)
     .single();
   // Fail CLOSED: if we can't read the profile, don't risk activating past the
@@ -63,13 +66,25 @@ export async function setPasswordAction(formData: FormData): Promise<SetPassword
     ip: await getRequestIp(),
   });
 
-  // If still awaiting the credit form, they can't use the app yet. Sign them
-  // out so no session lingers — otherwise the middleware would keep bouncing
-  // them off /login back into /portal (which rejects inactive users), causing
-  // a redirect loop / flicker. With no session they land cleanly on login.
+  // Awaiting credit: password is set but the account stays inactive. Send the
+  // follow-up email (confirms password set + reiterates "Awaiting Credit", with
+  // the credit application PDF attached), then hand back to the client to show
+  // the MANDATORY download gate. We keep the session alive for that step;
+  // finishCreditOnboardingAction signs out once they continue.
   if (!activate) {
-    await supabase.auth.signOut();
-    redirect("/login?error=credit_pending");
+    await sendCreditApplicationEmail(profile.email as string, profile.name as string | null);
+    return { awaitingCredit: true };
   }
   redirect("/");
+}
+
+/**
+ * Called after the awaiting-credit user has downloaded the credit application
+ * (mandatory-download gate). Signs them out and lands them on login with the
+ * "account will be activated once UDTL receives your credit application" notice.
+ */
+export async function finishCreditOnboardingAction(): Promise<void> {
+  const supabase = await createServerClient();
+  await supabase.auth.signOut();
+  redirect("/login?error=credit_pending");
 }
