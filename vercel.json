@@ -9,6 +9,10 @@
     {
       "path": "/api/cron/poll-fleethunt",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/digest",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

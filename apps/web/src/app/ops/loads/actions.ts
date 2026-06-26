@@ -212,3 +212,23 @@ export async function updateLoadStatusAction(
   revalidatePath(`/ops/loads/${loadId}`);
   return { ok: true, id: loadId };
 }
+
+/**
+ * Manually send a "Delayed" alert to a load's subscribers (FRD §9, Epic 9).
+ * Does NOT change the load status — it's an out-of-band heads-up. Admin/Staff.
+ */
+export async function sendDelayedAlertAction(loadId: number): Promise<LoadActionResult> {
+  const actor = await getCurrentUser();
+  if (!actor || !can(actor.role, "trigger_delayed_or_rating")) {
+    return { error: "You don't have permission to send a delayed alert." };
+  }
+  await notifyLoadEvent(loadId, "delayed");
+  await writeAudit({
+    actorUserId: actor.id,
+    action: "load.delayed_alert_sent",
+    entityType: "load",
+    entityId: String(loadId),
+    ip: await getRequestIp(),
+  });
+  return { ok: true, id: loadId };
+}

@@ -4,6 +4,7 @@ import { requireCapability } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { LoadForm, type OrgOption, type AmOption } from "@/components/load-form";
 import { LoadStatusControl } from "@/components/load-status-control";
+import { DelayedAlertButton } from "@/components/delayed-alert-button";
 import { LoadTrackingPanel } from "@/components/load-tracking-panel";
 import { DeviceAssignControl } from "@/components/device-assign-control";
 import { RouteMap } from "@/components/route-map";
@@ -204,7 +205,10 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      <LoadStatusControl loadId={load.id} current={load.status as LoadStatus} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <LoadStatusControl loadId={load.id} current={load.status as LoadStatus} />
+        <DelayedAlertButton loadId={load.id} />
+      </div>
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-slate-700">Order details</h2>

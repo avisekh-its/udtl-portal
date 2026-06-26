@@ -1,11 +1,15 @@
 import { requireCapability } from "@/lib/auth";
-import { isCostVisibleToCustomers } from "@/lib/settings";
+import { isCostVisibleToCustomers, getDigestTimes } from "@/lib/settings";
 import { SettingsCostToggle } from "@/components/settings-cost-toggle";
+import { SettingsDigestTimes } from "@/components/settings-digest-times";
 
 /** System settings — UDTL Admin only (manage_system_settings). */
 export default async function SettingsPage() {
   await requireCapability("manage_system_settings");
-  const costVisible = await isCostVisibleToCustomers();
+  const [costVisible, digestTimes] = await Promise.all([
+    isCostVisibleToCustomers(),
+    getDigestTimes(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -17,6 +21,11 @@ export default async function SettingsPage() {
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-slate-700">Customer visibility</h2>
         <SettingsCostToggle initial={costVisible} />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-slate-700">Notifications</h2>
+        <SettingsDigestTimes initial={digestTimes} />
       </section>
     </div>
   );
