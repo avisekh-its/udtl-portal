@@ -24,7 +24,7 @@ export default async function PortalUsersPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Your team</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Invite and manage users for your company.
+          Invite and manage users for your company. Click a user to control which orders they can see.
         </p>
       </div>
 
@@ -40,6 +40,7 @@ export default async function PortalUsersPage() {
         orgNames={{}}
         manage
         currentUserId={actor.id}
+        linkTo="/portal/users/{id}"
       />
     </div>
   );

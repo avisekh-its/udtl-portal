@@ -55,13 +55,19 @@ export function UsersTable({
   manage = false,
   currentUserId,
   title = "Users",
+  linkTo,
 }: {
   users: UserRow[];
   orgNames: Record<string, string>;
   manage?: boolean;
   currentUserId?: string;
   title?: string;
+  /** When set, the user name links to this template (e.g. "/portal/users/{id}"). */
+  linkTo?: string;
 }) {
+  const columns: Column[] = linkTo
+    ? [{ key: "display", header: "User", type: "link", linkTo, subKey: "email", sticky: true }, ...COLUMNS.slice(1)]
+    : COLUMNS;
   const rows = users.map((u) => {
     const awaitingCredit = !!u.credit_form_required && !u.credit_form_received;
     return {
@@ -79,7 +85,7 @@ export function UsersTable({
   return (
     <DataTable
       title={title}
-      columns={COLUMNS}
+      columns={columns}
       rows={rows}
       searchKeys={["display", "email", "role_label", "org_name"]}
       filters={[
