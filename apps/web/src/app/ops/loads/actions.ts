@@ -34,7 +34,7 @@ export async function saveLoadAction(
     return { error: "You don't have permission to manage loads." };
   }
 
-  const invalid = validateLoadInput(input);
+  const invalid = validateLoadInput(input, { requireAccountManager: true });
   if (invalid) return { error: invalid };
 
   const admin = createServiceClient();

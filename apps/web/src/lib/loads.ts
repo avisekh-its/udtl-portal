@@ -90,8 +90,17 @@ export interface LoadInput {
 /** Validate a load input. Returns an error string, or null if valid.
  *  NOTE: missing stop contact/phone is NOT an error — it's a confirm prompt
  *  handled in the UI (see stopsMissingContact). */
-export function validateLoadInput(input: LoadInput): string | null {
+export function validateLoadInput(
+  input: LoadInput,
+  opts?: { requireAccountManager?: boolean },
+): string | null {
   if (!input.organizationId) return "Choose a customer for this load.";
+  // An account manager is mandatory on manually-created/edited orders so every
+  // customer comment has a designated recipient (Epic 10). Imports don't pass
+  // this flag — they carry no AM in the order data.
+  if (opts?.requireAccountManager && !input.accountManagerId) {
+    return "Assign an account manager — required so customer comments reach someone.";
+  }
   if (!input.stops || input.stops.length === 0) return "Add at least one stop.";
   const hasShipper = input.stops.some((s) => s.type === "pickup");
   const hasConsignee = input.stops.some((s) => s.type === "delivery");

@@ -136,7 +136,7 @@ export function LoadForm({
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const invalid = validateLoadInput(form);
+    const invalid = validateLoadInput(form, { requireAccountManager: true });
     if (invalid) {
       toast.error(invalid);
       return;
@@ -167,9 +167,9 @@ export function LoadForm({
         <FieldShell label="Customer order # / PO" htmlFor="customerReference">
           <input id="customerReference" value={form.customerReference} onChange={(e) => setField("customerReference", e.target.value)} className={controlClass} />
         </FieldShell>
-        <FieldShell label="Account manager" htmlFor="accountManagerId">
+        <FieldShell label="Account manager" htmlFor="accountManagerId" required>
           <select id="accountManagerId" value={form.accountManagerId} onChange={(e) => setField("accountManagerId", e.target.value)} className={controlClass}>
-            <option value="">Unassigned</option>
+            <option value="" disabled>Select an account manager…</option>
             {accountManagers.map((a) => (
               <option key={a.id} value={a.id}>{a.label}</option>
             ))}
