@@ -10,11 +10,12 @@ import {
   type CommitResult,
 } from "@/app/ops/loads/import/actions";
 import { IconDownload, IconCheckCircle, IconAlertTriangle } from "@/components/icons";
+import type { AmOption } from "@/components/load-form";
 
 const money = (cents: number, cur: string) =>
   `$${(cents / 100).toLocaleString("en-CA", { minimumFractionDigits: 2 })} ${cur}`;
 
-export function CsvImport() {
+export function CsvImport({ accountManagers }: { accountManagers: AmOption[] }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState("");
@@ -22,6 +23,7 @@ export function CsvImport() {
   const [preview, setPreview] = useState<CsvPreviewResult | null>(null);
   const [result, setResult] = useState<CommitResult | null>(null);
   const [confirmMissing, setConfirmMissing] = useState(false);
+  const [amId, setAmId] = useState("");
   const [pending, startTransition] = useTransition();
 
   const validOrders = preview?.orders?.filter((o) => o.load) ?? [];
@@ -50,6 +52,7 @@ export function CsvImport() {
     startTransition(async () => {
       const r = await commitCsvImportAction(
         validOrders.map((o) => ({ customerOrderNo: o.customerOrderNo, load: o.load! })),
+        amId,
       );
       setResult(r);
       setPreview(null);
@@ -58,6 +61,10 @@ export function CsvImport() {
   }
 
   function onCommitClick() {
+    if (!amId) {
+      setError("Choose an account manager for this import.");
+      return;
+    }
     if (validOrders.some((o) => o.missingContact.length > 0)) setConfirmMissing(true);
     else doCommit();
   }
@@ -159,14 +166,31 @@ export function CsvImport() {
               )}
               <span className="text-slate-400"> · {preview.summary?.totalRows} rows</span>
             </div>
-            <button
-              type="button"
-              onClick={onCommitClick}
-              disabled={pending || validOrders.length === 0}
-              className="rounded-lg bg-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-secondary-700)] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {pending ? "Importing…" : `Import ${validOrders.length} order${validOrders.length === 1 ? "" : "s"}`}
-            </button>
+            <div className="flex items-center gap-2">
+              <select
+                value={amId}
+                onChange={(e) => setAmId(e.target.value)}
+                aria-label="Account manager for this import"
+                className="rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-[var(--color-secondary)]"
+              >
+                <option value="" disabled>
+                  Account manager…
+                </option>
+                {accountManagers.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={onCommitClick}
+                disabled={pending || validOrders.length === 0 || !amId}
+                className="rounded-lg bg-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-secondary-700)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {pending ? "Importing…" : `Import ${validOrders.length} order${validOrders.length === 1 ? "" : "s"}`}
+              </button>
+            </div>
           </div>
 
           <div className="divide-y divide-[var(--color-border)]">

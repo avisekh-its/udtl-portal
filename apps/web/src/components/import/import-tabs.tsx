@@ -27,7 +27,7 @@ export function ImportTabs({ orgs, accountManagers }: { orgs: OrgOption[]; accou
       {tab === "pdf" ? (
         <PdfImport orgs={orgs} accountManagers={accountManagers} />
       ) : (
-        <CsvImport />
+        <CsvImport accountManagers={accountManagers} />
       )}
     </div>
   );

@@ -286,12 +286,16 @@ export interface CommitResult {
   failed?: { order: string; reason: string }[];
 }
 
-export async function commitCsvImportAction(commits: CommitOrder[]): Promise<CommitResult> {
+export async function commitCsvImportAction(
+  commits: CommitOrder[],
+  accountManagerId: string,
+): Promise<CommitResult> {
   const actor = await getCurrentUser();
   if (!actor || !can(actor.role, "create_edit_loads")) {
     return { error: "You don't have permission to import orders." };
   }
   if (!commits?.length) return { error: "Nothing to import." };
+  if (!accountManagerId) return { error: "Choose an account manager for this import." };
 
   const admin = createServiceClient();
   let created = 0;
@@ -299,7 +303,10 @@ export async function commitCsvImportAction(commits: CommitOrder[]): Promise<Com
   const failed: { order: string; reason: string }[] = [];
 
   for (const c of commits) {
-    const invalid = validateLoadInput(c.load);
+    // Every imported order is assigned to the batch's account manager so
+    // customer comments always have a recipient (Epic 10).
+    c.load.accountManagerId = accountManagerId;
+    const invalid = validateLoadInput(c.load, { requireAccountManager: true });
     if (invalid) {
       failed.push({ order: c.customerOrderNo, reason: invalid });
       continue;
