@@ -133,3 +133,120 @@ export async function notifyLoadEvent(loadId: number, event: NotifyEvent): Promi
     console.error("[notifyLoadEvent] failed:", e);
   }
 }
+
+/**
+ * A new CUSTOMER comment on a load notifies the load's assigned Account Manager
+ * (Epic 10): in-app always, plus email if the AM is subscribed to email on this
+ * load. Best-effort — never throws.
+ */
+export async function notifyAccountManagerOfComment(
+  loadId: number,
+  authorId: string,
+): Promise<void> {
+  try {
+    const admin = createServiceClient();
+    const { data: load } = await admin
+      .from("loads")
+      .select("account_manager_id, load_reference, order_number")
+      .eq("id", loadId)
+      .single();
+    const amId = (load?.account_manager_id as string | null) ?? null;
+    if (!amId || amId === authorId) return;
+
+    const ref = (load!.order_number as string) || (load!.load_reference as string);
+    const subject = `New comment on ${ref}`;
+    const body = `A customer left a comment on order ${ref}.`;
+
+    await admin.from("notification_log").insert({
+      user_id: amId,
+      load_id: loadId,
+      event: "comment",
+      channel: "in_app",
+      recipient: amId,
+      status: "sent",
+      subject,
+      body,
+    });
+
+    const { data: sub } = await admin
+      .from("notification_subscriptions")
+      .select("users ( email )")
+      .eq("load_id", loadId)
+      .eq("user_id", amId)
+      .eq("channel", "email")
+      .maybeSingle();
+    const amEmail = (sub?.users as { email?: string | null } | undefined)?.email;
+    if (amEmail) {
+      const res = await sendEmail({
+        to: amEmail,
+        subject,
+        html: `<p style="font-family:Arial,sans-serif;font-size:15px;color:#334155">${body} Open it in the UDTL console to reply.</p>`,
+      });
+      await admin.from("notification_log").insert({
+        user_id: amId,
+        load_id: loadId,
+        event: "comment",
+        channel: "email",
+        recipient: amEmail,
+        status: res.ok ? "sent" : "failed",
+        subject,
+        body,
+        provider_message_id: res.id ?? null,
+        error: res.error ?? null,
+      });
+    }
+  } catch (e) {
+    console.error("[notifyAccountManagerOfComment]", e);
+  }
+}
+
+/**
+ * A UDTL (staff) reply notifies the load's customer users in-app, so the
+ * conversation shows up in their bell. Scoped like can_view_load: all active
+ * customer users in the org, or only assigned ones for restricted users.
+ */
+export async function notifyCustomersOfStaffComment(
+  loadId: number,
+  authorId: string,
+): Promise<void> {
+  try {
+    const admin = createServiceClient();
+    const { data: load } = await admin
+      .from("loads")
+      .select("organization_id, load_reference, order_number")
+      .eq("id", loadId)
+      .single();
+    if (!load?.organization_id) return;
+    const ref = (load.order_number as string) || (load.load_reference as string);
+
+    const { data: users } = await admin
+      .from("users")
+      .select("id, restricted")
+      .eq("organization_id", load.organization_id)
+      .in("role", ["customer_admin", "customer_user"])
+      .eq("active", true);
+    if (!users?.length) return;
+
+    const { data: assigned } = await admin
+      .from("load_assigned_users")
+      .select("user_id")
+      .eq("load_id", loadId);
+    const assignedSet = new Set((assigned ?? []).map((a) => a.user_id as string));
+
+    const rows = users
+      .filter((u) => (!u.restricted || assignedSet.has(u.id as string)) && u.id !== authorId)
+      .map((u) => ({
+        user_id: u.id as string,
+        load_id: loadId,
+        event: "comment",
+        channel: "in_app" as const,
+        recipient: u.id as string,
+        status: "sent" as const,
+        subject: `New comment on ${ref}`,
+        body: `UDTL replied on order ${ref}.`,
+      }));
+    if (rows.length) await admin.from("notification_log").insert(rows);
+  } catch (e) {
+    console.error("[notifyCustomersOfStaffComment]", e);
+  }
+}

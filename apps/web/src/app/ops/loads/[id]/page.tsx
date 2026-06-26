@@ -5,6 +5,8 @@ import { createServerClient } from "@/lib/supabase/server";
 import { LoadForm, type OrgOption, type AmOption } from "@/components/load-form";
 import { LoadStatusControl } from "@/components/load-status-control";
 import { DelayedAlertButton } from "@/components/delayed-alert-button";
+import { CommentThread } from "@/components/comment-thread";
+import { fetchComments } from "@/lib/comments";
 import { LoadTrackingPanel } from "@/components/load-tracking-panel";
 import { DeviceAssignControl } from "@/components/device-assign-control";
 import { RouteMap } from "@/components/route-map";
@@ -99,7 +101,7 @@ function commodityInit(c: CommodityRow): CommodityInput {
 }
 
 export default async function LoadDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireCapability("create_edit_loads");
+  const actor = await requireCapability("create_edit_loads");
   const { id } = await params;
   const loadId = Number(id);
   if (!Number.isFinite(loadId)) notFound();
@@ -220,6 +222,8 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
           initial={initial}
         />
       </div>
+
+      <CommentThread loadId={load.id} comments={await fetchComments(load.id, actor.id)} viewerIsStaff />
     </div>
   );
 }

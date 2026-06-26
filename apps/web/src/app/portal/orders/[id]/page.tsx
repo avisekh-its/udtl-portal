@@ -10,6 +10,8 @@ import { LOAD_STATUS_LABELS, type LoadStatus } from "@/lib/loads";
 import { isCostVisibleToCustomers } from "@/lib/settings";
 import { getCurrentUser, isStaff } from "@/lib/auth";
 import { NotifySubscriptions } from "@/components/notify-subscriptions";
+import { CommentThread } from "@/components/comment-thread";
+import { fetchComments } from "@/lib/comments";
 import { loadRouteStops, loadRouteLine } from "@/lib/tracking/route";
 
 const dateFmt = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Winnipeg" });
@@ -105,6 +107,8 @@ export default async function PortalOrderDetail({ params }: { params: Promise<{ 
     ? await supabase.from("notification_subscriptions").select("event, channel").eq("load_id", loadId)
     : { data: [] as { event: string; channel: string }[] };
   const subInitial = (subRows ?? []).map((s) => `${s.event}:${s.channel}`);
+
+  const comments = viewer ? await fetchComments(loadId, viewer.id) : [];
   // Customers can't read tracking_devices (RLS), so derive "is it being tracked"
   // from the load's own cached fields. The internal device name is hidden.
   const isTracked = meta.currentPlace != null || load.live_eta_at != null || load.live_distance_km != null;
@@ -280,6 +284,11 @@ export default async function PortalOrderDetail({ params }: { params: Promise<{ 
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Comments (Epic 10) */}
+      {viewer && (
+        <CommentThread loadId={loadId} comments={comments} viewerIsStaff={isStaff(viewer.role)} />
       )}
 
       {/* Notification subscriptions (Epic 9) */}
