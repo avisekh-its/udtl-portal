@@ -8,6 +8,8 @@ import { StatusChip } from "@/components/status-chip";
 import { LOAD_STATUS_MAP } from "@/components/status-badge";
 import { LOAD_STATUS_LABELS, type LoadStatus } from "@/lib/loads";
 import { isCostVisibleToCustomers } from "@/lib/settings";
+import { getCurrentUser, isStaff } from "@/lib/auth";
+import { NotifySubscriptions } from "@/components/notify-subscriptions";
 import { loadRouteStops, loadRouteLine } from "@/lib/tracking/route";
 
 const dateFmt = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Winnipeg" });
@@ -95,6 +97,14 @@ export default async function PortalOrderDetail({ params }: { params: Promise<{ 
   if (!data) notFound();
   const load = data as unknown as LoadRow;
   const meta = load.metadata ?? {};
+
+  // The caller's notification subscriptions for this order (RLS → their own).
+  const viewer = await getCurrentUser();
+  const showNotify = !!viewer && !isStaff(viewer.role);
+  const { data: subRows } = showNotify
+    ? await supabase.from("notification_subscriptions").select("event, channel").eq("load_id", loadId)
+    : { data: [] as { event: string; channel: string }[] };
+  const subInitial = (subRows ?? []).map((s) => `${s.event}:${s.channel}`);
   // Customers can't read tracking_devices (RLS), so derive "is it being tracked"
   // from the load's own cached fields. The internal device name is hidden.
   const isTracked = meta.currentPlace != null || load.live_eta_at != null || load.live_distance_km != null;
@@ -271,6 +281,9 @@ export default async function PortalOrderDetail({ params }: { params: Promise<{ 
           </table>
         </div>
       )}
+
+      {/* Notification subscriptions (Epic 9) */}
+      {showNotify && <NotifySubscriptions loadId={loadId} initial={subInitial} />}
     </div>
   );
 }

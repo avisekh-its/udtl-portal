@@ -10,6 +10,46 @@ const SENDGRID_ENDPOINT = "https://api.sendgrid.com/v3/mail/send";
 interface SendResult {
   ok: boolean;
   error?: string;
+  id?: string;
+}
+
+/**
+ * Generic transactional email send. Optionally appends a CASL unsubscribe link.
+ * Returns the SendGrid message id on success. Never throws.
+ */
+export async function sendEmail(opts: {
+  to: string;
+  subject: string;
+  html: string;
+  unsubscribeUrl?: string;
+}): Promise<SendResult> {
+  const key = process.env.SENDGRID_API_KEY;
+  const from = process.env.SENDGRID_FROM_EMAIL;
+  if (!key || !from) return { ok: false, error: "SendGrid not configured" };
+
+  const footer = opts.unsubscribeUrl
+    ? `<p style="color:#94a3b8;font-size:12px;border-top:1px solid #e4e8ee;padding-top:12px;margin-top:16px">
+         You're receiving this because you subscribed to updates for this order.
+         <a href="${opts.unsubscribeUrl}" style="color:#94a3b8">Unsubscribe</a>.
+       </p>`
+    : "";
+
+  try {
+    const res = await fetch(SENDGRID_ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: opts.to }] }],
+        from: { email: from, name: "United Dhillon Trucking Lines" },
+        subject: opts.subject,
+        content: [{ type: "text/html", value: opts.html + footer }],
+      }),
+    });
+    if (res.ok) return { ok: true, id: res.headers.get("x-message-id") ?? undefined };
+    return { ok: false, error: `SendGrid ${res.status}: ${(await res.text()).slice(0, 160)}` };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
 }
 
 /** Fetch the served credit-application PDF and return it base64-encoded. */

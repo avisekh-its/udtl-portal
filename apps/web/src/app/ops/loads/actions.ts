@@ -11,6 +11,7 @@ import {
   type LoadInput,
   type LoadStatus,
 } from "@/lib/loads";
+import { notifyLoadEvent, eventForStatus } from "@/lib/notifications/dispatch";
 
 export interface LoadActionResult {
   ok?: boolean;
@@ -202,6 +203,10 @@ export async function updateLoadStatusAction(
     after: { status: newStatus, exception: backward },
     ip: await getRequestIp(),
   });
+
+  // Auto-notify subscribers of this load's new status (Epic 9). Best-effort.
+  const event = eventForStatus(newStatus);
+  if (event) await notifyLoadEvent(loadId, event);
 
   revalidatePath("/ops/loads");
   revalidatePath(`/ops/loads/${loadId}`);

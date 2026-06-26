@@ -1,5 +1,11 @@
 import { isStaff, can, type CurrentUser } from "@/lib/auth";
-import { AppShellClient, type NavItem, type ShellUser } from "@/components/app-shell-client";
+import { createServerClient } from "@/lib/supabase/server";
+import {
+  AppShellClient,
+  type NavItem,
+  type ShellUser,
+  type ShellNotification,
+} from "@/components/app-shell-client";
 
 const ROLE_LABELS: Record<CurrentUser["role"], string> = {
   udtl_admin: "UDTL Admin",
@@ -51,7 +57,7 @@ function navFor(user: CurrentUser): NavItem[] {
  * Enterprise app shell: fixed left sidebar nav + slim top header.
  * Wraps every authenticated page (ops + portal).
  */
-export function AppShell({
+export async function AppShell({
   user,
   area,
   children,
@@ -66,8 +72,33 @@ export function AppShell({
     roleLabel: ROLE_LABELS[user.role],
     initials: (user.name || user.email).slice(0, 1).toUpperCase(),
   };
+
+  // The viewer's in-app notifications (RLS scopes to their own rows).
+  const supabase = await createServerClient();
+  const { data: rows } = await supabase
+    .from("notification_log")
+    .select("id, subject, body, created_at, read_at")
+    .eq("user_id", user.id)
+    .eq("channel", "in_app")
+    .order("created_at", { ascending: false })
+    .limit(15);
+  const notifications: ShellNotification[] = (rows ?? []).map((n) => ({
+    id: n.id as number,
+    title: (n.subject as string) || "Update",
+    body: (n.body as string) || "",
+    at: n.created_at as string,
+    unread: !n.read_at,
+  }));
+  const unreadCount = notifications.filter((n) => n.unread).length;
+
   return (
-    <AppShellClient user={shellUser} area={area} nav={navFor(user)}>
+    <AppShellClient
+      user={shellUser}
+      area={area}
+      nav={navFor(user)}
+      notifications={notifications}
+      unreadCount={unreadCount}
+    >
       {children}
     </AppShellClient>
   );
