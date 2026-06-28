@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireCapability } from "@/lib/auth";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient, createServiceClient } from "@/lib/supabase/server";
 import { LoadForm, type OrgOption, type AmOption } from "@/components/load-form";
 import { LoadStatusControl } from "@/components/load-status-control";
 import { DelayedAlertButton } from "@/components/delayed-alert-button";
@@ -10,6 +10,7 @@ import { fetchComments } from "@/lib/comments";
 import { LoadTrackingPanel } from "@/components/load-tracking-panel";
 import { DeviceAssignControl } from "@/components/device-assign-control";
 import { RouteMap } from "@/components/route-map";
+import { TrackingLinkPanel, type TrackingLinkRow } from "@/components/tracking-link-panel";
 import { loadFormOptions } from "../form-data";
 import { deviceAssignmentOptions } from "../assignment-data";
 import { loadRouteStops, loadRouteLine } from "@/lib/tracking/route";
@@ -68,6 +69,7 @@ interface LoadRow {
   customer_reference: string | null;
   organization_id: string;
   account_manager_id: string | null;
+  public_tracking_token: string | null;
   status: string;
   per_load_cost_currency: string | null;
   special_instructions: string | null;
@@ -110,7 +112,7 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
   const { data } = await supabase
     .from("loads")
     .select(
-      "id, load_reference, order_number, order_date, pickup_date, customer_reference, organization_id, account_manager_id, status, per_load_cost_currency, special_instructions, live_eta_at, live_distance_km, metadata, organization:organization_id ( name ), device:tracking_device_id ( id, name, has_gps_gateway, last_fix_at ), stops ( sequence, type, name, address_line_1, address_line_2, city, region, postal_code, country, planned_from_at, planned_to_at, actual_at, contact_person, phone, notes, stop_commodities ( sequence, commodity, pkg_qty, pkg_unit, weight, weight_unit, length_in, breadth_in, height_in, equipment, rate_method, reefer, value_of_goods ) ), charges:load_charges ( sequence, description, amount_cents )",
+      "id, load_reference, order_number, order_date, pickup_date, customer_reference, organization_id, account_manager_id, public_tracking_token, status, per_load_cost_currency, special_instructions, live_eta_at, live_distance_km, metadata, organization:organization_id ( name ), device:tracking_device_id ( id, name, has_gps_gateway, last_fix_at ), stops ( sequence, type, name, address_line_1, address_line_2, city, region, postal_code, country, planned_from_at, planned_to_at, actual_at, contact_person, phone, notes, stop_commodities ( sequence, commodity, pkg_qty, pkg_unit, weight, weight_unit, length_in, breadth_in, height_in, equipment, rate_method, reefer, value_of_goods ) ), charges:load_charges ( sequence, description, amount_cents )",
     )
     .eq("id", loadId)
     .single();
@@ -165,6 +167,22 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
       ? { lat: meta.currentLat, lng: meta.currentLng, place: meta.currentPlace }
       : null;
 
+  // Tracking links live behind service-role RLS (default-deny to clients), so
+  // read them with the admin client after the capability check above.
+  const { data: linkData } = await createServiceClient()
+    .from("tracking_links")
+    .select("id, token, recipient_email, expires_at, revoked_at, last_used_at")
+    .eq("load_id", load.id)
+    .order("created_at", { ascending: false });
+  const trackingLinks: TrackingLinkRow[] = (linkData ?? []).map((l) => ({
+    id: l.id as number,
+    token: l.token as string,
+    recipientEmail: (l.recipient_email as string | null) ?? null,
+    expiresAt: l.expires_at as string,
+    revokedAt: (l.revoked_at as string | null) ?? null,
+    lastUsedAt: (l.last_used_at as string | null) ?? null,
+  }));
+
   return (
     <div className="space-y-6">
       <div>
@@ -205,6 +223,10 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
           </div>
           <RouteMap stops={routeStops} truck={truck} line={routeLine} />
         </div>
+      )}
+
+      {load.public_tracking_token && (
+        <TrackingLinkPanel loadId={load.id} publicToken={load.public_tracking_token} links={trackingLinks} />
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
