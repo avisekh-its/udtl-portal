@@ -17,11 +17,19 @@ interface SendResult {
  * Generic transactional email send. Optionally appends a CASL unsubscribe link.
  * Returns the SendGrid message id on success. Never throws.
  */
+export interface EmailAttachment {
+  /** base64-encoded file content. */
+  content: string;
+  filename: string;
+  type: string;
+}
+
 export async function sendEmail(opts: {
   to: string;
   subject: string;
   html: string;
   unsubscribeUrl?: string;
+  attachments?: EmailAttachment[];
 }): Promise<SendResult> {
   const key = process.env.SENDGRID_API_KEY;
   const from = process.env.SENDGRID_FROM_EMAIL;
@@ -43,6 +51,9 @@ export async function sendEmail(opts: {
         from: { email: from, name: "United Dhillon Trucking Lines" },
         subject: opts.subject,
         content: [{ type: "text/html", value: opts.html + footer }],
+        ...(opts.attachments?.length
+          ? { attachments: opts.attachments.map((a) => ({ content: a.content, filename: a.filename, type: a.type, disposition: "attachment" })) }
+          : {}),
       }),
     });
     if (res.ok) return { ok: true, id: res.headers.get("x-message-id") ?? undefined };

@@ -31,6 +31,9 @@ function navFor(user: CurrentUser): NavItem[] {
     if (can(user.role, "manage_customer_orgs")) {
       nav.push({ label: "Customers", href: "/ops/customers", icon: "customers" });
     }
+    if (can(user.role, "view_reports")) {
+      nav.push({ label: "Reports", href: "/ops/reports", icon: "chart" });
+    }
     if (user.role === "udtl_admin" || user.role === "udtl_staff") {
       nav.push({ label: "Users", href: "/ops/users", icon: "users" });
     }
