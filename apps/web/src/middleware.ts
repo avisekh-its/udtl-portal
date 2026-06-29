@@ -34,7 +34,7 @@ interface CookieToSet {
   options?: CookieOptions;
 }
 
-const PUBLIC_PATHS = ["/login", "/auth", "/forgot-password", "/unsubscribe", "/track"];
+const PUBLIC_PATHS = ["/login", "/auth", "/forgot-password", "/unsubscribe", "/track", "/rate"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));

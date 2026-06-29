@@ -11,6 +11,8 @@ import { LoadTrackingPanel } from "@/components/load-tracking-panel";
 import { DeviceAssignControl } from "@/components/device-assign-control";
 import { RouteMap } from "@/components/route-map";
 import { TrackingLinkPanel, type TrackingLinkRow } from "@/components/tracking-link-panel";
+import { RatingRequestPanel } from "@/components/rating-request-panel";
+import { ratingsForLoad } from "@/lib/ratings/service";
 import { loadFormOptions } from "../form-data";
 import { deviceAssignmentOptions } from "../assignment-data";
 import { loadRouteStops, loadRouteLine } from "@/lib/tracking/route";
@@ -183,6 +185,9 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
     lastUsedAt: (l.last_used_at as string | null) ?? null,
   }));
 
+  // Post-delivery ratings (Epic 13) — shown once the load is Delivered.
+  const ratings = load.status === "delivered" ? await ratingsForLoad(load.id) : [];
+
   return (
     <div className="space-y-6">
       <div>
@@ -233,6 +238,8 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
         <LoadStatusControl loadId={load.id} current={load.status as LoadStatus} />
         <DelayedAlertButton loadId={load.id} />
       </div>
+
+      {load.status === "delivered" && <RatingRequestPanel loadId={load.id} ratings={ratings} />}
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-slate-700">Order details</h2>

@@ -10,6 +10,8 @@ import { type LoadStatus } from "@/lib/loads";
 import { computeReport, reportCustomers } from "@/lib/reports/compute";
 import { parseReportFilters } from "@/lib/reports/filters";
 import { formatDelay } from "@/lib/reports/on-time";
+import { ratingsSummary } from "@/lib/ratings/service";
+import { StarRating } from "@/components/star-rating";
 import { ReportFilterBar } from "./report-filters";
 
 const STATUS_COLORS: Record<LoadStatus, string> = {
@@ -32,7 +34,11 @@ export default async function ReportsPage({
   await requireCapability("view_reports");
   const params = await searchParams;
   const filters = parseReportFilters(params);
-  const [customers, result] = await Promise.all([reportCustomers(), computeReport(filters)]);
+  const [customers, result, ratings] = await Promise.all([
+    reportCustomers(),
+    computeReport(filters),
+    ratingsSummary({ customerId: filters.customerId, from: filters.from, to: filters.to }),
+  ]);
   const customerName = filters.customerId
     ? (customers.find((c) => c.id === filters.customerId)?.name ?? "Unknown customer")
     : "All customers";
@@ -84,6 +90,36 @@ export default async function ReportsPage({
             {trend.length ? <VerticalBarChart data={trend} /> : <p className="py-10 text-sm text-slate-400">No completed stops in range.</p>}
           </div>
         </div>
+      </div>
+
+      {/* Customer ratings (Epic 13) */}
+      <div className="card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-slate-800">Customer ratings</h3>
+          {ratings.average != null && (
+            <div className="flex items-center gap-2">
+              <StarRating value={Math.round(ratings.average)} />
+              <span className="text-sm font-semibold text-slate-800">{ratings.average}/5</span>
+              <span className="text-xs text-slate-400">({ratings.count} review{ratings.count === 1 ? "" : "s"})</span>
+            </div>
+          )}
+        </div>
+        {ratings.recent.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-400">No ratings submitted in this period.</p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {ratings.recent.map((r, i) => (
+              <li key={i} className="border-b border-[var(--color-border)] pb-3 last:border-0 last:pb-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StarRating value={r.score} size={14} />
+                  <Link href={`/ops/loads/${r.loadId}`} className="font-mono text-xs text-[var(--color-secondary)] hover:underline">{r.ref}</Link>
+                  <span className="text-xs text-slate-400">· {r.customer}{r.at ? ` · ${dt(r.at)}` : ""}</span>
+                </div>
+                {r.review && <p className="mt-1 text-sm text-slate-600">“{r.review}”</p>}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Exception list */}
