@@ -19,7 +19,7 @@ const STATUS_COLORS: Record<LoadStatus, string> = {
   assigned: "#3b82f6",
   in_transit: "#e85d1c",
   delivered: "#16a34a",
-  cancelled: "#cbd5e1",
+  cancelled: "#ef4444",
 };
 const dtFmt = new Intl.DateTimeFormat("en-CA", { dateStyle: "short", timeStyle: "short", timeZone: "America/Winnipeg" });
 const dt = (iso: string | null) => (iso ? dtFmt.format(new Date(iso)) : "—");

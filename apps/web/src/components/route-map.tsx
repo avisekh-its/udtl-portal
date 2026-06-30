@@ -25,23 +25,27 @@ export interface TruckPos {
 
 const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
 
-/** Teardrop pin with a letter/number. */
+/** Modern circular pin with a clean pointer and a centered letter/number. */
 export function pinHtml(bg: string, label: string) {
-  return `<div style="position:relative;width:24px;height:30px">
-    <div style="position:absolute;top:0;left:0;width:24px;height:24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${bg};border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.35)"></div>
-    <span style="position:absolute;top:3px;left:0;width:24px;text-align:center;color:#fff;font:700 11px system-ui">${label}</span>
+  return `<div style="position:relative;width:24px;height:30px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))">
+    <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);width:22px;height:22px;border-radius:9999px;background:${bg};border:2px solid #fff;display:flex;align-items:center;justify-content:center">
+      <span style="color:#fff;font:700 10px system-ui;line-height:1">${label}</span>
+    </div>
+    <div style="position:absolute;left:50%;top:18px;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid ${bg}"></div>
   </div>`;
 }
 /** Round dot (kept for non-truck uses). */
 export function dotHtml(color: string, ring: string) {
   return `<span style="display:block;width:18px;height:18px;border-radius:9999px;background:${color};border:2px solid #fff;box-shadow:0 0 0 2px ${ring},0 1px 3px rgba(0,0,0,.4)"></span>`;
 }
-/** Live-truck marker: a truck glyph in a brand-orange badge. */
+/** Live-truck marker: a sleek filled semi-truck in a brand-orange badge. */
 export function truckHtml(bg = "#e85d1c") {
-  return `<div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9999px;background:${bg};border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1"/>
-      <circle cx="7.5" cy="17.5" r="1.5"/><circle cx="17.5" cy="17.5" r="1.5"/>
+  return `<div style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9999px;background:${bg};border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35)">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="#fff">
+      <path d="M2 6.5c0-.55.45-1 1-1h7.5c.55 0 1 .45 1 1v7.2H2V6.5Z"/>
+      <path d="M13.5 8.8h3.6c.46 0 .9.21 1.18.58l1.95 2.5c.2.26.31.58.31.9v1.42H13.5V8.8Z"/>
+      <circle cx="6.6" cy="17.3" r="2.4"/><circle cx="17.2" cy="17.3" r="2.4"/>
+      <circle cx="6.6" cy="17.3" r=".95" fill="${bg}"/><circle cx="17.2" cy="17.3" r=".95" fill="${bg}"/>
     </svg>
   </div>`;
 }
@@ -97,7 +101,7 @@ export function RouteMap({
       });
 
       if (truck) {
-        const icon = L.divIcon({ className: "", html: truckHtml("#e85d1c"), iconSize: [28, 28], iconAnchor: [14, 14] });
+        const icon = L.divIcon({ className: "", html: truckHtml("#e85d1c"), iconSize: [30, 30], iconAnchor: [15, 15] });
         L.marker([truck.lat, truck.lng], { icon })
           .bindPopup(`<div style="font:13px system-ui"><b>Truck</b><br>${esc(truck.place || "Current position")}</div>`)
           .addTo(map);

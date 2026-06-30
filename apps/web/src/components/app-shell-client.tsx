@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { NAV_ICONS, type IconName } from "@/components/icons";
-import { IconBell, IconSearch, IconMenu, IconSignOut, IconChevronDown, IconPanelLeft } from "@/components/icons";
+import { IconBell, IconSearch, IconMenu, IconSignOut, IconPanelLeft } from "@/components/icons";
 import { BrandMark } from "@/components/brand-mark";
 import { markNotificationsReadAction } from "@/app/notifications/actions";
 
@@ -40,6 +40,8 @@ export interface ShellNotification {
   unread: boolean;
 }
 
+const SUPPORT_HREF = "mailto:support@itsinc.ca?subject=UDTL%20Portal%20support";
+
 export function AppShellClient({
   user,
   area,
@@ -57,7 +59,6 @@ export function AppShellClient({
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -72,7 +73,6 @@ export function AppShellClient({
   // Close drawers on navigation.
   useEffect(() => {
     setMobileOpen(false);
-    setProfileOpen(false);
     setNotifsOpen(false);
   }, [pathname]);
 
@@ -82,7 +82,6 @@ export function AppShellClient({
   function openNotifs() {
     const next = !notifsOpen;
     setNotifsOpen(next);
-    setProfileOpen(false);
     if (next && unreadCount > 0 && !seen) {
       setSeen(true);
       void markNotificationsReadAction();
@@ -99,12 +98,14 @@ export function AppShellClient({
 
   /** `rail` = collapsed icon-only mode (desktop). The mobile drawer always renders full. */
   const renderSidebar = (rail: boolean) => (
-    <div className="flex h-full flex-col bg-[var(--color-primary)] text-white">
-      <div className={`flex h-14 items-center ${rail ? "justify-center px-0" : "gap-2.5 px-5"}`}>
+    <div className="flex h-full flex-col border-r border-[var(--color-border)] bg-white">
+      {/* Brand */}
+      <div className={`flex h-14 items-center border-b border-[var(--color-border)] ${rail ? "justify-center px-0" : "gap-2.5 px-5"}`}>
         <BrandMark />
-        {!rail && <span className="text-[10px] uppercase tracking-[0.16em] text-white/45">{area}</span>}
+        {!rail && <span className="text-[10px] uppercase tracking-[0.16em] text-slate-400">{area}</span>}
       </div>
 
+      {/* Nav */}
       <nav className="flex-1 space-y-1 px-3 py-4">
         {nav.map((item) => {
           const Icon = NAV_ICONS[item.icon];
@@ -115,9 +116,16 @@ export function AppShellClient({
               href={item.href}
               className={`group relative flex items-center rounded-lg text-sm transition ${
                 rail ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2"
-              } ${active ? "bg-white/10 font-medium text-white" : "text-white/60 hover:bg-white/5 hover:text-white"}`}
+              } ${
+                active
+                  ? "bg-[var(--color-secondary)]/10 font-medium text-[var(--color-secondary)]"
+                  : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+              }`}
             >
-              <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-[var(--color-secondary)]" : ""}`} />
+              {active && (
+                <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[var(--color-secondary)]" aria-hidden />
+              )}
+              <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-[var(--color-secondary)]" : "text-slate-500 group-hover:text-slate-700"}`} />
               {!rail && <span className="truncate">{item.label}</span>}
               {rail && <span className={tooltip}>{item.label}</span>}
             </Link>
@@ -125,19 +133,46 @@ export function AppShellClient({
         })}
       </nav>
 
-      <div className="border-t border-white/10 px-3 py-3">
-        <form action="/auth/signout" method="post">
-          <button
-            type="submit"
-            className={`group relative flex w-full items-center rounded-lg text-sm text-white/65 transition hover:bg-white/8 hover:text-white ${
-              rail ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2"
-            }`}
-          >
-            <IconSignOut className="h-[18px] w-[18px] shrink-0" />
-            {!rail && "Sign out"}
-            {rail && <span className={tooltip}>Sign out</span>}
-          </button>
-        </form>
+      {/* User block (bottom) */}
+      <div className="border-t border-[var(--color-border)] p-3">
+        {rail ? (
+          <div className="flex flex-col items-center gap-2">
+            <span className="group relative grid h-9 w-9 place-items-center rounded-full bg-[var(--color-primary)] text-xs font-semibold text-white">
+              {user.initials}
+              <span className={tooltip}>{user.name}</span>
+            </span>
+            <form action="/auth/signout" method="post">
+              <button
+                type="submit"
+                className="group relative grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Sign out"
+              >
+                <IconSignOut className="h-[18px] w-[18px]" />
+                <span className={tooltip}>Sign out</span>
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--color-primary)] text-xs font-semibold text-white">
+              {user.initials}
+            </span>
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="truncate text-sm font-medium text-slate-800">{user.name}</div>
+              <div className="truncate text-[10px] uppercase tracking-wide text-slate-400">{user.roleLabel}</div>
+            </div>
+            <form action="/auth/signout" method="post">
+              <button
+                type="submit"
+                className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Sign out"
+                title="Sign out"
+              >
+                <IconSignOut className="h-[18px] w-[18px]" />
+              </button>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -161,7 +196,7 @@ export function AppShellClient({
         </div>
       )}
 
-      <div className={`transition-[padding] duration-300 ease-in-out ${collapsed ? "md:pl-[76px]" : "md:pl-60"}`}>
+      <div className={`flex min-h-screen flex-col transition-[padding] duration-300 ease-in-out ${collapsed ? "md:pl-[76px]" : "md:pl-60"}`}>
         {/* Top header */}
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-[var(--color-border)] bg-white/90 px-4 backdrop-blur sm:px-6">
           {/* Desktop rail toggle */}
@@ -261,61 +296,32 @@ export function AppShellClient({
               )}
             </div>
 
-            <span className="hidden h-7 w-px bg-[var(--color-border)] sm:block" />
-
-            {/* Profile */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setProfileOpen((v) => !v)}
-                className="flex items-center gap-2.5 rounded-lg border border-transparent py-1 pl-1 pr-1.5 transition hover:border-[var(--color-border)] hover:bg-white"
-              >
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[#34363c] text-xs font-semibold text-white ring-2 ring-[var(--color-secondary)]/25">
-                  {user.initials}
-                </span>
-                <span className="hidden text-left leading-tight sm:block">
-                  <span className="block text-sm font-medium text-slate-800">{user.name}</span>
-                  <span className="block text-[11px] text-slate-400">{user.roleLabel}</span>
-                </span>
-                <IconChevronDown
-                  className={`hidden h-4 w-4 text-slate-400 transition-transform sm:block ${profileOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-
-              {profileOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
-                  <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-xl border border-[var(--color-border)] bg-white shadow-xl">
-                    <div className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[#f7f8fa] px-4 py-3">
-                      <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[#34363c] text-sm font-semibold text-white ring-2 ring-[var(--color-secondary)]/25">
-                        {user.initials}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-slate-800">{user.name}</div>
-                        <div className="truncate text-xs text-slate-400">{user.email}</div>
-                      </div>
-                    </div>
-                    <div className="px-4 py-2">
-                      <span className="inline-flex items-center rounded-full bg-[var(--color-secondary)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-secondary)]">
-                        {user.roleLabel}
-                      </span>
-                    </div>
-                    <form action="/auth/signout" method="post" className="border-t border-[var(--color-border)]">
-                      <button
-                        type="submit"
-                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-                      >
-                        <IconSignOut className="h-4 w-4" /> Sign out
-                      </button>
-                    </form>
-                  </div>
-                </>
-              )}
-            </div>
+            {/* Support */}
+            <a
+              href={SUPPORT_HREF}
+              className="hidden items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 sm:inline-flex"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" /><path d="M12 17h.01" />
+              </svg>
+              Support
+            </a>
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
+        <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
+
+        {/* Footer */}
+        <footer className="border-t border-[var(--color-border)] px-4 py-4 sm:px-6 lg:px-10">
+          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+            <span>© 2026 United Dhillon Trucking Lines · Operated by ITS Inc.</span>
+            <div className="flex gap-5">
+              <Link href="#" className="transition hover:text-slate-600">Privacy</Link>
+              <Link href="#" className="transition hover:text-slate-600">Terms</Link>
+              <Link href="#" className="transition hover:text-slate-600">Security</Link>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );

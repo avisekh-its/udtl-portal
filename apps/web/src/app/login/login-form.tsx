@@ -11,10 +11,11 @@ const ssoEnabled = process.env.NEXT_PUBLIC_SSO_ENABLED === "true";
 
 type MessageTone = "error" | "success" | "info";
 
+// Dark-panel tones (the sign-in panel is now dark).
 const TONE_STYLES: Record<MessageTone, string> = {
-  error: "border-[var(--color-error)]/30 bg-[var(--color-error)]/5 text-[var(--color-error)]",
-  success: "border-[var(--color-success)]/30 bg-[var(--color-success)]/8 text-[var(--color-success)]",
-  info: "border-[var(--color-secondary)]/30 bg-[var(--color-secondary)]/8 text-[var(--color-secondary)]",
+  error: "border-red-500/40 bg-red-500/10 text-red-300",
+  success: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+  info: "border-[var(--color-secondary)]/40 bg-[var(--color-secondary)]/10 text-orange-300",
 };
 
 export function LoginForm({
@@ -42,9 +43,10 @@ export function LoginForm({
   }
 
   const inputCls =
-    "w-full rounded-lg border border-[var(--color-border)] py-3 pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-[var(--color-secondary)] focus:ring-2 focus:ring-[var(--color-secondary)]/20 disabled:opacity-60";
+    "w-full rounded-lg border border-white/10 bg-white/5 py-3 pl-10 pr-3 text-sm text-white placeholder-white/30 outline-none transition focus:border-[var(--color-secondary)] focus:ring-2 focus:ring-[var(--color-secondary)]/25 disabled:opacity-60";
   const iconCls =
-    "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400";
+    "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40";
+  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-white/50";
 
   return (
     <div className="space-y-5">
@@ -58,8 +60,8 @@ export function LoginForm({
           </div>
         )}
         <div className="space-y-1.5">
-          <label htmlFor="email" className="block text-sm font-medium text-slate-700">
-            Email
+          <label htmlFor="email" className={labelCls}>
+            Email address
           </label>
           <div className="relative">
             <IconMail className={iconCls} />
@@ -79,7 +81,7 @@ export function LoginForm({
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="password" className={labelCls}>
               Password
             </label>
             <Link
@@ -106,7 +108,7 @@ export function LoginForm({
               onClick={() => setShowPassword((v) => !v)}
               tabIndex={-1}
               aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 transition hover:text-slate-600"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-white/40 transition hover:text-white/80"
             >
               {showPassword ? <IconEyeOff className="h-4 w-4" /> : <IconEye className="h-4 w-4" />}
             </button>
@@ -123,10 +125,10 @@ export function LoginForm({
       </form>
 
       {/* Divider */}
-      <div className="flex items-center gap-3 text-xs text-slate-400">
-        <span className="h-px flex-1 bg-[var(--color-border)]" />
+      <div className="flex items-center gap-3 text-xs text-white/40">
+        <span className="h-px flex-1 bg-white/10" />
         OR
-        <span className="h-px flex-1 bg-[var(--color-border)]" />
+        <span className="h-px flex-1 bg-white/10" />
       </div>
 
       {/* SSO — UDTL staff only (mixed mode; password login still works). */}
@@ -135,7 +137,7 @@ export function LoginForm({
           <>
             <SsoButton provider="Google" href="/auth/sso/google" />
             <SsoButton provider="Microsoft" href="/auth/sso/microsoft" />
-            <p className="text-center text-[11px] text-slate-400">
+            <p className="text-center text-[11px] text-white/40">
               Use the same email as your account
             </p>
           </>
@@ -143,7 +145,7 @@ export function LoginForm({
           <>
             <SsoButton provider="Google" />
             <SsoButton provider="Microsoft" />
-            <p className="text-center text-[11px] text-slate-400">
+            <p className="text-center text-[11px] text-white/40">
               Single sign-on with Google or Microsoft — coming soon
             </p>
           </>
@@ -182,11 +184,11 @@ function ProviderIcon({ provider }: { provider: string }) {
 
 function SsoButton({ provider, href }: { provider: string; href?: string }) {
   const base =
-    "relative flex w-full items-center justify-center gap-2.5 rounded-lg border border-[var(--color-border)] bg-white px-3 py-3 text-sm font-medium";
+    "relative flex w-full items-center justify-center gap-2.5 rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm font-medium";
 
   if (href) {
     return (
-      <a href={href} className={`${base} text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow`}>
+      <a href={href} className={`${base} text-white transition hover:bg-white/10 hover:border-white/20`}>
         <ProviderIcon provider={provider} />
         Continue with {provider}
       </a>
@@ -197,13 +199,13 @@ function SsoButton({ provider, href }: { provider: string; href?: string }) {
       type="button"
       disabled
       title="Single sign-on is coming soon"
-      className={`${base} cursor-not-allowed text-slate-500`}
+      className={`${base} cursor-not-allowed text-white/50`}
     >
       <span className="opacity-40">
         <ProviderIcon provider={provider} />
       </span>
       Continue with {provider}
-      <span className="absolute right-3 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+      <span className="absolute right-3 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/40">
         soon
       </span>
     </button>

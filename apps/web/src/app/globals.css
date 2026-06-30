@@ -44,6 +44,29 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Dark auth panels (login): browsers paint a light background on autofilled
+ * fields (-webkit-autofill) which overrides the dark input style. Mask it with
+ * a solid dark inset and keep the text white. Scoped to .auth-dark so the app's
+ * light forms keep their normal autofill look. */
+.auth-dark input:-webkit-autofill,
+.auth-dark input:-webkit-autofill:hover,
+.auth-dark input:-webkit-autofill:focus,
+.auth-dark input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+  -webkit-box-shadow: 0 0 0 1000px #141824 inset;
+  box-shadow: 0 0 0 1000px #141824 inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Leaflet uses high internal z-indexes for its panes (markers ~600, controls
+ * ~1000). Contain them in a z-index:0 stacking context so the map never paints
+ * over app modals/overlays (e.g. the "Confirm device" dialog). */
+.leaflet-container {
+  position: relative;
+  z-index: 0;
+}
+
 /* Reusable surface card — flat, single hairline + faint shadow */
 .card {
   background: var(--color-surface);

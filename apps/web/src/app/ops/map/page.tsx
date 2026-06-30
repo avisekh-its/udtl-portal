@@ -69,6 +69,7 @@ export default async function OpsMapPage() {
       id: l.id,
       ref: l.order_number || l.load_reference,
       customer: org?.name ?? "—",
+      status: l.status,
       statusLabel: LOAD_STATUS_LABELS[l.status as LoadStatus] ?? l.status,
       lat: dev.last_lat,
       lng: dev.last_lng,
