@@ -28,7 +28,7 @@ export async function generateTrackingLinkAction(
   expiresInDays: number,
 ): Promise<LinkActionResult> {
   const actor = await getCurrentUser();
-  if (!actor || !can(actor.role, "create_edit_loads")) {
+  if (!actor || !can(actor.role, "generate_tracking_links")) {
     return { error: "You don't have permission to share tracking links." };
   }
   const days = ALLOWED_DAYS.includes(expiresInDays) ? expiresInDays : 7;
@@ -82,7 +82,7 @@ export async function generateTrackingLinkAction(
 
 export async function revokeTrackingLinkAction(linkId: number): Promise<LinkActionResult> {
   const actor = await getCurrentUser();
-  if (!actor || !can(actor.role, "create_edit_loads")) {
+  if (!actor || !can(actor.role, "generate_tracking_links")) {
     return { error: "You don't have permission to revoke tracking links." };
   }
   const admin = createServiceClient();

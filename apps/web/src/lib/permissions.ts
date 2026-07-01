@@ -65,7 +65,7 @@ export const PERMISSION_MATRIX: Record<Capability, readonly UserRole[]> = {
   generate_tracking_links:   [ADMIN, STAFF, ACCT],
   manage_own_subscriptions:  [CUST_ADMIN, CUST_USER],
   view_reports:              [ADMIN, STAFF, ACCT],
-  export_reports:            [ADMIN, STAFF, ACCT, CUST_ADMIN, CUST_USER],
+  export_reports:            [ADMIN, STAFF, ACCT],
   view_audit_log:            [ADMIN],
 } as const;
 

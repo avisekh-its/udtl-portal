@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   previewCsvAction,
   commitCsvImportAction,
@@ -10,6 +10,7 @@ import {
   type CommitResult,
 } from "@/app/ops/loads/import/actions";
 import { IconDownload, IconCheckCircle, IconAlertTriangle } from "@/components/icons";
+import { FileDropzone } from "@/components/import/file-dropzone";
 import type { AmOption } from "@/components/load-form";
 
 const money = (cents: number, cur: string) =>
@@ -17,8 +18,7 @@ const money = (cents: number, cur: string) =>
 
 export function CsvImport({ accountManagers }: { accountManagers: AmOption[] }) {
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [fileName, setFileName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<CsvPreviewResult | null>(null);
   const [result, setResult] = useState<CommitResult | null>(null);
@@ -33,7 +33,6 @@ export function CsvImport({ accountManagers }: { accountManagers: AmOption[] }) 
     setError(null);
     setResult(null);
     setPreview(null);
-    const file = inputRef.current?.files?.[0];
     if (!file) {
       setError("Choose a CSV file (use the ITS template).");
       return;
@@ -103,8 +102,7 @@ export function CsvImport({ accountManagers }: { accountManagers: AmOption[] }) 
             type="button"
             onClick={() => {
               setResult(null);
-              setFileName("");
-              if (inputRef.current) inputRef.current.value = "";
+              setFile(null);
             }}
             className="text-sm font-medium text-slate-500 hover:underline"
           >
@@ -135,12 +133,15 @@ export function CsvImport({ accountManagers }: { accountManagers: AmOption[] }) 
           </a>
         </div>
 
-        <input
-          ref={inputRef}
-          type="file"
+        <FileDropzone
           accept=".csv,text/csv"
-          onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
-          className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary)] file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-[var(--color-primary)]/90"
+          hint="Accepted file types: .csv"
+          file={file}
+          onFile={(f) => {
+            setFile(f);
+            setError(null);
+          }}
+          disabled={pending}
         />
         {error && <p className="text-sm text-[var(--color-error)]">{error}</p>}
         <button

@@ -123,6 +123,20 @@ export async function assignDeviceAction(
     if (!device) return { error: "That device no longer exists." };
     if (!device.active) return { error: "That device is inactive in FleetHunt." };
     deviceName = device.name as string;
+
+    // A device can only track one active load at a time — otherwise the poll
+    // writes the same position/ETA to both and the map badge is ambiguous.
+    const { data: clash } = await admin
+      .from("loads")
+      .select("id, load_reference, order_number")
+      .eq("tracking_device_id", deviceId)
+      .in("status", ["new", "assigned", "in_transit"])
+      .neq("id", loadId)
+      .maybeSingle();
+    if (clash) {
+      const ref = (clash.order_number as string) || (clash.load_reference as string);
+      return { error: `That device is already tracking ${ref}. Clear it there first.` };
+    }
   }
 
   // Clearing the device also drops the now-stale live position cache on the load.

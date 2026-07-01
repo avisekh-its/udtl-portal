@@ -44,7 +44,9 @@ export async function GET(
   });
 
   if (error || !data?.url) {
-    return NextResponse.redirect(new URL("/login?error=sso", request.url));
+    const u = new URL("/login?error=sso", request.url);
+    if (error?.message) u.searchParams.set("detail", error.message.slice(0, 200));
+    return NextResponse.redirect(u);
   }
   return NextResponse.redirect(data.url);
 }

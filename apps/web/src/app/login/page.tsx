@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { LoginForm } from "./login-form";
+import { BrandMark } from "@/components/brand-mark";
 
 type MessageTone = "error" | "success" | "info";
 
@@ -16,6 +17,7 @@ const MESSAGES: Record<string, { text: string; tone: MessageTone }> = {
   link: { text: "That link is invalid. Please request a new one.", tone: "error" },
   link_expired: { text: "That link has expired. Please request a new one.", tone: "error" },
   sso: { text: "Single sign-on failed. Please try again or use your password.", tone: "error" },
+  session: { text: "Your session couldn't be loaded. Please sign in again.", tone: "info" },
   sso_provider: { text: "That sign-in provider isn't available.", tone: "error" },
   sso_no_account: {
     text: "No account exists for that email yet. Sign in with your email and password first — single sign-on works once your account is set up.",
@@ -62,21 +64,12 @@ const FEATURES: { title: string; desc: string; tint: string; icon: React.ReactNo
   },
 ];
 
-function Wordmark() {
-  return (
-    <div className="text-2xl font-bold tracking-tight">
-      <span className="text-[var(--color-secondary)]">UDTL</span>
-      <span className="text-white"> OPERATIONS</span>
-    </div>
-  );
-}
-
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; detail?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, detail } = await searchParams;
   const notice = error ? MESSAGES[error] : undefined;
 
   return (
@@ -85,7 +78,7 @@ export default async function LoginPage({
       <div className="flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-16">
         <div className="mx-auto w-full max-w-md">
           <div className="mb-9">
-            <Wordmark />
+            <BrandMark size="lg" />
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">Sign in to your account</h1>
           <p className="mt-2 text-sm text-white/50">Welcome back. Please enter your details.</p>
@@ -93,6 +86,12 @@ export default async function LoginPage({
           <div className="mt-8">
             <LoginForm initialMessage={notice?.text} initialTone={notice?.tone} />
           </div>
+
+          {detail && (
+            <p className="mt-3 break-words rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-[11px] text-white/50">
+              Diagnostic: {detail}
+            </p>
+          )}
 
           <p className="mt-8 text-center text-xs text-white/35">
             Protected access for UDTL customers and staff

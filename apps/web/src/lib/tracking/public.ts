@@ -119,13 +119,15 @@ export async function getPublicTracking(loadId: number): Promise<PublicTracking 
   const firstPickup = pickups[0] ?? null;
   const lastDelivery = deliveries[deliveries.length - 1] ?? null;
 
-  // Milestone timeline from the audit trail (status-change timestamps).
+  // Milestone timeline from the audit trail (status-change timestamps). Include
+  // backward moves (load.status_reverted) too, else a corrected order shows gaps
+  // in the customer-facing timeline (matches the portal detail view).
   const { data: auditRows } = await admin
     .from("audit_log")
     .select("after, created_at")
     .eq("entity_type", "load")
     .eq("entity_id", String(loadId))
-    .eq("action", "load.status_changed")
+    .in("action", ["load.status_changed", "load.status_reverted"])
     .order("created_at", { ascending: true });
   const firstReachedAt = new Map<LoadStatus, string>();
   for (const row of (auditRows ?? []) as { after: { status?: string } | null; created_at: string }[]) {

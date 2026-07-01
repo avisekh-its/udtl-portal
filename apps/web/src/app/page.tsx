@@ -7,6 +7,9 @@ import { getCurrentUser, dashboardPathForRole } from "@/lib/auth";
  */
 export default async function Home() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  // A session with no usable profile (e.g. a half-provisioned invite) must NOT
+  // bounce back here — the `error` param exempts it from the middleware's
+  // signed-in → home redirect, breaking what would otherwise be a redirect loop.
+  if (!user) redirect("/login?error=session");
   redirect(dashboardPathForRole(user.role));
 }

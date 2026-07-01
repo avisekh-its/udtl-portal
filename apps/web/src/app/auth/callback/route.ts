@@ -30,7 +30,9 @@ export async function GET(request: Request) {
   const providerError = url.searchParams.get("error_description") || url.searchParams.get("error");
   if (providerError) {
     console.error("[auth/callback] provider error:", providerError);
-    return NextResponse.redirect(new URL(`/login?error=${isSso ? "sso" : "link"}`, request.url));
+    const u = new URL(`/login?error=${isSso ? "sso" : "link"}`, request.url);
+    u.searchParams.set("detail", String(providerError).slice(0, 200));
+    return NextResponse.redirect(u);
   }
 
   if (!code) {

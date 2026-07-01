@@ -1,21 +1,21 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { parsePdfOrderAction, type PdfParseResult } from "@/app/ops/loads/import/actions";
 import { LoadForm, type OrgOption, type AmOption } from "@/components/load-form";
+import { FileDropzone } from "@/components/import/file-dropzone";
 import { IconAlertTriangle, IconCheckCircle } from "@/components/icons";
 
 export function PdfImport({ orgs, accountManagers }: { orgs: OrgOption[]; accountManagers: AmOption[] }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<PdfParseResult | null>(null);
-  const [fileName, setFileName] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const fileName = file?.name ?? "";
 
   function extract(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const file = inputRef.current?.files?.[0];
     if (!file) {
       setError("Choose a UDTL order-sheet PDF first.");
       return;
@@ -61,8 +61,7 @@ export function PdfImport({ orgs, accountManagers }: { orgs: OrgOption[]; accoun
           type="button"
           onClick={() => {
             setResult(null);
-            setFileName("");
-            if (inputRef.current) inputRef.current.value = "";
+            setFile(null);
           }}
           className="text-sm font-medium text-slate-500 hover:underline"
         >
@@ -82,12 +81,15 @@ export function PdfImport({ orgs, accountManagers }: { orgs: OrgOption[]; accoun
         </p>
       </div>
 
-      <input
-        ref={inputRef}
-        type="file"
+      <FileDropzone
         accept="application/pdf,.pdf"
-        onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
-        className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary)] file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-[var(--color-primary)]/90"
+        hint="Accepted file types: .pdf"
+        file={file}
+        onFile={(f) => {
+          setFile(f);
+          setError(null);
+        }}
+        disabled={pending}
       />
 
       {error && <p className="text-sm text-[var(--color-error)]">{error}</p>}

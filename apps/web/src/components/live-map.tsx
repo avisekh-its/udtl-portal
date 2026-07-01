@@ -173,6 +173,18 @@ export function LiveMap({
     }
 
     if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 9 });
+
+    // A refresh rebuilds all markers and clears the route layer. If an order was
+    // focused and still exists in this view, re-draw its route so the selection
+    // isn't left highlighted with a silently-wiped overlay.
+    if (selected && markersRef.current.has(selected)) {
+      void focus(selected);
+    } else if (selected) {
+      setSelected(null);
+      setRouteMsg(null);
+    }
+    // `focus`/`selected` are intentionally excluded — re-running only on data change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, view, orders, devices]);
 
   async function focus(key: string) {
