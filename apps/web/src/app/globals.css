@@ -33,14 +33,14 @@
   /* Brand alias kept so older references don't break */
   --color-brand: #e85d1c;
 
-  --radius-card: 12px;
+  --radius-card: 16px;
 }
 
 html,
 body {
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -67,12 +67,12 @@ body {
   z-index: 0;
 }
 
-/* Reusable surface card — flat, single hairline + faint shadow */
+/* Reusable surface card — flat, single hairline + soft layered shadow */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  box-shadow: 0 1px 2px rgba(16, 39, 66, 0.04);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px -6px rgba(16, 24, 40, 0.06);
 }
 
 /* Splash intro animations */

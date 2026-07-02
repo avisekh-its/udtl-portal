@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireCapability } from "@/lib/auth";
+import { requireCapability, can } from "@/lib/auth";
 import { createServerClient, createServiceClient } from "@/lib/supabase/server";
 import { LoadForm, type OrgOption, type AmOption } from "@/components/load-form";
+import { LoadReadonlySummary } from "@/components/load-readonly-summary";
 import { LoadStatusControl } from "@/components/load-status-control";
 import { DelayedAlertButton } from "@/components/delayed-alert-button";
 import { CommentThread } from "@/components/comment-thread";
@@ -105,7 +106,14 @@ function commodityInit(c: CommodityRow): CommodityInput {
 }
 
 export default async function LoadDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const actor = await requireCapability("create_edit_loads");
+  // View is open to any staff who can see loads (incl. Account Managers, who
+  // need to read the order to reply to comments + share tracking links). Each
+  // edit control below is gated by its own capability.
+  const actor = await requireCapability("view_all_loads");
+  const canEdit = can(actor.role, "create_edit_loads");
+  const canAssignDevice = can(actor.role, "assign_tracking_device");
+  const canShareLinks = can(actor.role, "generate_tracking_links");
+  const canRate = can(actor.role, "trigger_delayed_or_rating");
   const { id } = await params;
   const loadId = Number(id);
   if (!Number.isFinite(loadId)) notFound();
@@ -200,11 +208,13 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
         <p className="mt-1 text-sm text-slate-500">{org?.name ?? "—"}</p>
       </div>
 
-      <DeviceAssignControl
-        loadId={load.id}
-        current={device ? { id: device.id, name: device.name, hasGateway: device.has_gps_gateway } : null}
-        options={deviceOptions}
-      />
+      {canAssignDevice && (
+        <DeviceAssignControl
+          loadId={load.id}
+          current={device ? { id: device.id, name: device.name, hasGateway: device.has_gps_gateway } : null}
+          options={deviceOptions}
+        />
+      )}
 
       <LoadTrackingPanel
         hasDevice={!!device}
@@ -230,26 +240,32 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      {load.public_tracking_token && (
+      {load.public_tracking_token && canShareLinks && (
         <TrackingLinkPanel loadId={load.id} publicToken={load.public_tracking_token} links={trackingLinks} />
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <LoadStatusControl loadId={load.id} current={load.status as LoadStatus} />
-        <DelayedAlertButton loadId={load.id} />
-      </div>
+      {canEdit && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <LoadStatusControl loadId={load.id} current={load.status as LoadStatus} />
+          <DelayedAlertButton loadId={load.id} />
+        </div>
+      )}
 
-      {load.status === "delivered" && <RatingRequestPanel loadId={load.id} ratings={ratings} />}
+      {load.status === "delivered" && canRate && <RatingRequestPanel loadId={load.id} ratings={ratings} />}
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-slate-700">Order details</h2>
-        <LoadForm
-          mode="edit"
-          loadId={load.id}
-          orgs={orgs as OrgOption[]}
-          accountManagers={accountManagers as AmOption[]}
-          initial={initial}
-        />
+        {canEdit ? (
+          <LoadForm
+            mode="edit"
+            loadId={load.id}
+            orgs={orgs as OrgOption[]}
+            accountManagers={accountManagers as AmOption[]}
+            initial={initial}
+          />
+        ) : (
+          <LoadReadonlySummary initial={initial} orgName={org?.name ?? "—"} />
+        )}
       </div>
 
       <CommentThread loadId={load.id} comments={await fetchComments(load.id, actor.id)} viewerIsStaff />

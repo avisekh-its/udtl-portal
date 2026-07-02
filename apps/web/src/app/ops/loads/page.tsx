@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireCapability } from "@/lib/auth";
+import { requireCapability, can } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { DataTable, type Column, type RowAction } from "@/components/data-table";
 import { IconDownload } from "@/components/icons";
@@ -15,7 +15,8 @@ const COLUMNS: Column[] = [
   { key: "updated", header: "Updated", type: "muted" },
 ];
 
-const ROW_ACTIONS: RowAction[] = [{ key: "edit", label: "Edit", linkTo: "/ops/loads/{id}" }];
+const EDIT_ACTIONS: RowAction[] = [{ key: "edit", label: "Edit", linkTo: "/ops/loads/{id}" }];
+const VIEW_ACTIONS: RowAction[] = [{ key: "view", label: "View", linkTo: "/ops/loads/{id}" }];
 
 const fmtDate = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeZone: "America/Winnipeg" });
 
@@ -37,7 +38,8 @@ interface LoadListRow {
 }
 
 export default async function LoadsPage() {
-  await requireCapability("create_edit_loads");
+  const actor = await requireCapability("view_all_loads");
+  const canEdit = can(actor.role, "create_edit_loads");
   const supabase = await createServerClient();
 
   const { data } = await supabase
@@ -66,14 +68,18 @@ export default async function LoadsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Loads</h1>
-          <p className="mt-1 text-sm text-slate-500">Create and manage orders and their stops.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {canEdit ? "Create and manage orders and their stops." : "View orders and their stops."}
+          </p>
         </div>
-        <Link
-          href="/ops/loads/import"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-        >
-          <IconDownload className="h-4 w-4" /> Import orders
-        </Link>
+        {canEdit && (
+          <Link
+            href="/ops/loads/import"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            <IconDownload className="h-4 w-4" /> Import orders
+          </Link>
+        )}
       </div>
 
       <DataTable
@@ -89,9 +95,9 @@ export default async function LoadsPage() {
           },
         ]}
         exportFilename="loads"
-        emptyMessage="No loads yet. Create your first one."
-        headerAction={{ label: "New load", href: "/ops/loads/new" }}
-        rowActions={ROW_ACTIONS}
+        emptyMessage={canEdit ? "No loads yet. Create your first one." : "No loads yet."}
+        headerAction={canEdit ? { label: "New load", href: "/ops/loads/new" } : undefined}
+        rowActions={canEdit ? EDIT_ACTIONS : VIEW_ACTIONS}
       />
     </div>
   );

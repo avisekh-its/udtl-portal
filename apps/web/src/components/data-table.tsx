@@ -275,7 +275,7 @@ export function DataTable({
               {columns.map((c) => (
                 <th
                   key={c.key}
-                  className={`whitespace-nowrap px-4 py-2.5 ${c.align === "right" ? "text-right" : ""} ${
+                  className={`whitespace-nowrap px-4 py-3 ${c.align === "right" ? "text-right" : ""} ${
                     c.sticky ? "sticky left-0 z-10 bg-[#f7f8fa]" : ""
                   }`}
                 >
@@ -301,7 +301,7 @@ export function DataTable({
             ) : (
               pageRows.map((row, i) => {
                 const rowId = String(row[idKey] ?? i);
-                const zebra = i % 2 === 1 ? "bg-[#fafbfd]" : "bg-white";
+                const zebra = "bg-white";
                 const visibleActions = rowActions.filter(
                   (a) => !a.showWhen || row[a.showWhen.key] === a.showWhen.equals,
                 );
@@ -315,7 +315,7 @@ export function DataTable({
                     {columns.map((c) => (
                       <td
                         key={c.key}
-                        className={`whitespace-nowrap px-4 py-2 align-middle ${c.align === "right" ? "text-right" : ""} ${
+                        className={`whitespace-nowrap px-4 py-3.5 align-middle ${c.align === "right" ? "text-right" : ""} ${
                           c.sticky ? "sticky left-0 z-[1] bg-inherit" : ""
                         }`}
                       >

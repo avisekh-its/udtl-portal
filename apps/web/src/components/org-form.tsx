@@ -41,6 +41,8 @@ export function OrgForm({
   const [invitePrompt, setInvitePrompt] = useState<{ orgId: string; email: string } | null>(null);
   const [inviting, setInviting] = useState(false);
   const [requireCredit, setRequireCredit] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -65,8 +67,10 @@ export function OrgForm({
         toast.error(result.error);
       } else if (mode === "create" && result.id) {
         toast.success("Customer created.");
-        // Prompt to invite the primary contact as Customer Admin.
+        // Prompt to invite the primary contact as Customer Admin (email editable).
         setInvitePrompt({ orgId: result.id, email });
+        setInviteEmail(email);
+        setInviteError(null);
       } else {
         toast.success("Changes saved.");
         router.refresh();
@@ -80,14 +84,22 @@ export function OrgForm({
 
   function sendInvite() {
     if (!invitePrompt) return;
+    const email = inviteEmail.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      setInviteError("Enter a valid email address.");
+      return;
+    }
+    setInviteError(null);
     setInviting(true);
-    inviteOrgAdminAction(invitePrompt.orgId, invitePrompt.email, requireCredit).then((res) => {
+    inviteOrgAdminAction(invitePrompt.orgId, email, requireCredit).then((res) => {
       setInviting(false);
       if (res.error) {
-        toast.error(res.error);
+        // Keep the modal open with the error inline so staff can fix the email
+        // (e.g. an address that's already registered) and resend.
+        setInviteError(res.error);
         return;
       }
-      toast.success(`Invite sent to ${invitePrompt.email}.`);
+      toast.success(`Invite sent to ${email}.`);
       goToCustomer();
     });
   }
@@ -153,10 +165,22 @@ export function OrgForm({
         <div className="w-full max-w-md rounded-xl border border-[var(--color-border)] bg-white p-6 shadow-xl">
           <h3 className="text-base font-semibold text-slate-900">Invite the customer?</h3>
           <p className="mt-2 text-sm text-slate-600">
-            Send an invite to{" "}
-            <span className="font-medium text-slate-800">{invitePrompt.email}</span> so they can set
-            up their Customer Admin account and access the portal.
+            Send an invite so they can set up their Customer Admin account and access the portal.
           </p>
+          <label className="mt-3 block text-xs font-medium text-slate-500">
+            Invite email
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => {
+                setInviteEmail(e.target.value);
+                setInviteError(null);
+              }}
+              disabled={inviting}
+              className="mt-1 w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[var(--color-secondary)] disabled:opacity-60"
+            />
+          </label>
+          {inviteError && <p className="mt-2 text-sm text-[var(--color-error)]">{inviteError}</p>}
           <label className="mt-4 flex items-start gap-2 text-sm text-slate-600">
             <input
               type="checkbox"

@@ -98,11 +98,11 @@ export function AppShellClient({
 
   /** `rail` = collapsed icon-only mode (desktop). The mobile drawer always renders full. */
   const renderSidebar = (rail: boolean) => (
-    <div className="flex h-full flex-col border-r border-[var(--color-border)] bg-white">
+    <div className="flex h-full flex-col bg-[#0a0e1a]">
       {/* Brand */}
-      <div className={`flex h-14 items-center border-b border-[var(--color-border)] ${rail ? "justify-center px-0" : "gap-2.5 px-5"}`}>
+      <div className={`flex h-14 items-center border-b border-white/10 ${rail ? "justify-center px-0" : "gap-2.5 px-5"}`}>
         <BrandMark />
-        {!rail && <span className="text-[10px] uppercase tracking-[0.16em] text-slate-400">{area}</span>}
+        {!rail && <span className="text-[10px] uppercase tracking-[0.16em] text-white/40">{area}</span>}
       </div>
 
       {/* Nav */}
@@ -118,14 +118,14 @@ export function AppShellClient({
                 rail ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2"
               } ${
                 active
-                  ? "bg-[var(--color-secondary)]/10 font-medium text-[var(--color-secondary)]"
-                  : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-[var(--color-secondary)]/15 font-medium text-[var(--color-secondary)]"
+                  : "text-white/60 hover:bg-white/5 hover:text-white"
               }`}
             >
               {active && (
                 <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[var(--color-secondary)]" aria-hidden />
               )}
-              <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-[var(--color-secondary)]" : "text-slate-500 group-hover:text-slate-700"}`} />
+              <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-[var(--color-secondary)]" : "text-white/45 group-hover:text-white/80"}`} />
               {!rail && <span className="truncate">{item.label}</span>}
               {rail && <span className={tooltip}>{item.label}</span>}
             </Link>
@@ -134,17 +134,17 @@ export function AppShellClient({
       </nav>
 
       {/* User block (bottom) */}
-      <div className="border-t border-[var(--color-border)] p-3">
+      <div className="border-t border-white/10 p-3">
         {rail ? (
           <div className="flex flex-col items-center gap-2">
-            <span className="group relative grid h-9 w-9 place-items-center rounded-full bg-[var(--color-primary)] text-xs font-semibold text-white">
+            <span className="group relative grid h-9 w-9 place-items-center rounded-full bg-white/10 text-xs font-semibold text-white">
               {user.initials}
               <span className={tooltip}>{user.name}</span>
             </span>
             <form action="/auth/signout" method="post">
               <button
                 type="submit"
-                className="group relative grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                className="group relative grid h-9 w-9 place-items-center rounded-lg text-white/50 transition hover:bg-white/10 hover:text-white"
                 aria-label="Sign out"
               >
                 <IconSignOut className="h-[18px] w-[18px]" />
@@ -154,17 +154,17 @@ export function AppShellClient({
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--color-primary)] text-xs font-semibold text-white">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold text-white ring-1 ring-white/10">
               {user.initials}
             </span>
             <div className="min-w-0 flex-1 leading-tight">
-              <div className="truncate text-sm font-medium text-slate-800">{user.name}</div>
-              <div className="truncate text-[10px] uppercase tracking-wide text-slate-400">{user.roleLabel}</div>
+              <div className="truncate text-sm font-medium text-white">{user.name}</div>
+              <div className="truncate text-[10px] uppercase tracking-wide text-white/40">{user.roleLabel}</div>
             </div>
             <form action="/auth/signout" method="post">
               <button
                 type="submit"
-                className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                className="grid h-8 w-8 place-items-center rounded-lg text-white/50 transition hover:bg-white/10 hover:text-white"
                 aria-label="Sign out"
                 title="Sign out"
               >

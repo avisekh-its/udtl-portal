@@ -19,10 +19,8 @@ const ROLE_LABELS: Record<CurrentUser["role"], string> = {
 function navFor(user: CurrentUser): NavItem[] {
   if (isStaff(user.role)) {
     const nav: NavItem[] = [{ label: "Dashboard", href: "/ops", icon: "dashboard", exact: true }];
-    if (can(user.role, "create_edit_loads")) {
-      nav.push({ label: "Loads", href: "/ops/loads", icon: "truck" });
-    }
     if (can(user.role, "view_all_loads")) {
+      nav.push({ label: "Loads", href: "/ops/loads", icon: "truck" });
       nav.push({ label: "Live map", href: "/ops/map", icon: "map" });
     }
     if (can(user.role, "assign_tracking_device")) {
