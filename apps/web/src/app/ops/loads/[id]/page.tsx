@@ -217,6 +217,7 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
       )}
 
       <LoadTrackingPanel
+        loadId={load.id}
         hasDevice={!!device}
         deviceName={device?.name}
         hasGateway={device?.has_gps_gateway}

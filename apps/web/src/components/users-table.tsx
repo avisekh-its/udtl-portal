@@ -39,9 +39,34 @@ const ROW_ACTIONS: RowAction[] = [
     key: "mark_credit_received",
     label: "Mark credit received",
     showWhen: { key: "credit_status", equals: "awaiting" },
+    confirm: {
+      title: "Mark credit received?",
+      message:
+        "This confirms UDTL has received the completed credit application for {display} and activates their account immediately.",
+      confirmLabel: "Mark received",
+    },
   },
-  { key: "deactivate", label: "Deactivate", danger: true, showWhen: { key: "active", equals: true } },
-  { key: "reactivate", label: "Reactivate", showWhen: { key: "active", equals: false } },
+  {
+    key: "deactivate",
+    label: "Deactivate",
+    danger: true,
+    showWhen: { key: "active", equals: true },
+    confirm: {
+      title: "Deactivate this user?",
+      message: "{display} will immediately lose access to the portal. You can reactivate them at any time.",
+      confirmLabel: "Deactivate",
+    },
+  },
+  {
+    key: "reactivate",
+    label: "Reactivate",
+    showWhen: { key: "active", equals: false },
+    confirm: {
+      title: "Reactivate this user?",
+      message: "{display} will regain portal access right away.",
+      confirmLabel: "Reactivate",
+    },
+  },
 ];
 
 /**

@@ -18,8 +18,28 @@ const COLUMNS: Column[] = [
 
 const ROW_ACTIONS: RowAction[] = [
   { key: "edit", label: "Edit", linkTo: "/ops/customers/{id}" },
-  { key: "deactivate", label: "Deactivate", danger: true, showWhen: { key: "active", equals: true } },
-  { key: "reactivate", label: "Reactivate", showWhen: { key: "active", equals: false } },
+  {
+    key: "deactivate",
+    label: "Deactivate",
+    danger: true,
+    showWhen: { key: "active", equals: true },
+    confirm: {
+      title: "Deactivate this customer?",
+      message:
+        "{name} and all of their portal users will immediately lose access. You can reactivate them at any time.",
+      confirmLabel: "Deactivate",
+    },
+  },
+  {
+    key: "reactivate",
+    label: "Reactivate",
+    showWhen: { key: "active", equals: false },
+    confirm: {
+      title: "Reactivate this customer?",
+      message: "{name} will be restored as an active customer.",
+      confirmLabel: "Reactivate",
+    },
+  },
 ];
 
 /** Customer organizations list (FR-OPS-001). Staff/Admin only. */

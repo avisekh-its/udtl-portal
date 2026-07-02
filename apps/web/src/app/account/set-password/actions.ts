@@ -72,7 +72,19 @@ export async function setPasswordAction(formData: FormData): Promise<SetPassword
   // the MANDATORY download gate. We keep the session alive for that step;
   // finishCreditOnboardingAction signs out once they continue.
   if (!activate) {
-    await sendCreditApplicationEmail(profile.email as string, profile.name as string | null);
+    const sent = await sendCreditApplicationEmail(profile.email as string, profile.name as string | null);
+    if (!sent.ok) {
+      // Best-effort (never blocks onboarding), but a failure must not be
+      // invisible — it means the customer got no copy of the credit form.
+      console.error("[set-password] credit-application email failed:", sent.error, "→", profile.email);
+    }
+    await writeAudit({
+      actorUserId: user.id,
+      action: "auth.credit_email_" + (sent.ok ? "sent" : "failed"),
+      entityType: "user",
+      entityId: user.id,
+      after: { to: profile.email, error: sent.ok ? null : (sent.error ?? "unknown") },
+    });
     return { awaitingCredit: true };
   }
   redirect("/");

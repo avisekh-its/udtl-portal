@@ -162,6 +162,7 @@ export default async function PortalOrderDetail({ params }: { params: Promise<{ 
       </div>
 
       <LoadTrackingPanel
+        loadId={load.id}
         hasDevice={isTracked}
         deviceName={null}
         hasGateway={true}

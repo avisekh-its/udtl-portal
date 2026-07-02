@@ -32,6 +32,9 @@ export interface RowAction {
   linkTo?: string;
   /** Only show this action when row[key] === equals. */
   showWhen?: { key: string; equals: unknown };
+  /** Ask before running (for consequential actions like deactivate).
+   *  `message` supports {key} placeholders filled from the row. */
+  confirm?: { title: string; message: string; confirmLabel?: string };
 }
 
 export interface FilterDef {
@@ -134,6 +137,7 @@ export function DataTable({
   const [query, setQuery] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<{ action: RowAction; rowId: string; row: Row } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
@@ -354,7 +358,14 @@ export function DataTable({
                                     <button
                                       key={a.key}
                                       type="button"
-                                      onClick={() => runAction(a.key, rowId)}
+                                      onClick={() => {
+                                        if (a.confirm) {
+                                          setOpenMenu(null);
+                                          setConfirming({ action: a, rowId, row });
+                                        } else {
+                                          runAction(a.key, rowId);
+                                        }
+                                      }}
                                       className={`block w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${
                                         a.danger ? "text-[var(--color-error)]" : "text-slate-700"
                                       }`}
@@ -428,6 +439,45 @@ export function DataTable({
               </PageBtn>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Confirm dialog for consequential row actions (e.g. deactivate) */}
+      {confirming && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <div className="w-full max-w-md rounded-xl border border-[var(--color-border)] bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-slate-900">
+              {confirming.action.confirm!.title}
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              {applyTemplate(confirming.action.confirm!.message, confirming.row)}
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirming(null)}
+                disabled={pending}
+                className="rounded-lg border border-[var(--color-border)] bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  runAction(confirming.action.key, confirming.rowId);
+                  setConfirming(null);
+                }}
+                disabled={pending}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition disabled:opacity-60 ${
+                  confirming.action.danger
+                    ? "bg-[var(--color-error)] hover:bg-[#b93a3a]"
+                    : "bg-[var(--color-secondary)] hover:bg-[var(--color-secondary-700)]"
+                }`}
+              >
+                {confirming.action.confirm!.confirmLabel ?? confirming.action.label}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
