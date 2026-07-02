@@ -17,6 +17,28 @@ const dtFmt = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric",
 const fmtDt = (iso: string | null) => (iso ? dtFmt.format(new Date(iso)) : "—");
 const money = (cents: number | null, cur: string) => (cents == null ? "—" : `$${(cents / 100).toFixed(2)} ${cur}`);
 
+// The StandardFonts (Helvetica) can only encode WinAnsi/CP1252. A single stray
+// glyph — an arrow, an emoji, a CJK character from a pasted address — makes
+// drawText throw and 500s the whole export. Sanitize every string we draw:
+// keep ASCII + Latin-1 + the CP1252 punctuation extras, transliterate the few
+// symbols we intentionally emit, and drop anything else to a "?".
+const CP1252_EXTRAS = new Set([
+  0x20ac, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, 0x02c6, 0x2030, 0x0160,
+  0x2039, 0x0152, 0x017d, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014,
+  0x02dc, 0x2122, 0x0161, 0x203a, 0x0153, 0x017e, 0x0178,
+]);
+const TRANSLIT: Record<string, string> = { "→": "->", "←": "<-", "↑": "^", "↓": "v", "★": "*", "✓": "Y" };
+function winAnsi(s: string): string {
+  if (!s) return s;
+  let out = "";
+  for (const ch of s) {
+    const cp = ch.codePointAt(0)!;
+    if (cp < 0x80 || (cp >= 0xa0 && cp <= 0xff) || CP1252_EXTRAS.has(cp)) out += ch;
+    else out += TRANSLIT[ch] ?? "?";
+  }
+  return out;
+}
+
 /** Minimal top-down writer over a pdf-lib document with auto page breaks. */
 function writer(doc: PDFDocument, reg: PDFFont, bold: PDFFont) {
   let page: PDFPage = doc.addPage([W, H]);
@@ -36,7 +58,7 @@ function writer(doc: PDFDocument, reg: PDFFont, bold: PDFFont) {
   const text = (s: string, opts: { size?: number; bold?: boolean; color?: ReturnType<typeof rgb>; x?: number } = {}) => {
     const size = opts.size ?? 10;
     need(size + 5);
-    page.drawText(s, { x: opts.x ?? M, y: y - size, size, font: opts.bold ? bold : reg, color: opts.color ?? SLATE });
+    page.drawText(winAnsi(s), { x: opts.x ?? M, y: y - size, size, font: opts.bold ? bold : reg, color: opts.color ?? SLATE });
     y -= size + 5;
   };
   /** Draw one row of cells at the current y without advancing extra. */
@@ -46,7 +68,7 @@ function writer(doc: PDFDocument, reg: PDFFont, bold: PDFFont) {
   ) => {
     need(size + 6);
     for (const c of items) {
-      page.drawText(fit(c.text, c.w, size, c.bold ? bold : reg), {
+      page.drawText(fit(winAnsi(c.text), c.w, size, c.bold ? bold : reg), {
         x: c.x,
         y: y - size,
         size,
@@ -83,7 +105,7 @@ export async function buildReportPdf(result: ReportResult, customerName: string)
   w.text("United Dhillon Trucking Lines", { size: 11, bold: true, color: ORANGE });
   w.text("Performance Report", { size: 18, bold: true });
   w.gap(2);
-  w.text(`Customer: ${customerName}    Range: ${f.from} → ${f.to}`, { size: 10, color: MUTED });
+  w.text(`Customer: ${customerName}    Range: ${f.from} to ${f.to}`, { size: 10, color: MUTED });
   w.text(`Status: ${f.status}    Stop type: ${f.stopType}    Generated: ${fmtDt(result.generatedAt)} UTC`, { size: 9, color: MUTED });
   w.gap(6);
   w.rule();

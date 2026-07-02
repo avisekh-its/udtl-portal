@@ -2,6 +2,8 @@ import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 import { PublicTrackingView } from "@/components/public/tracking-view";
 import { resolveTrackingToken, getPublicTracking } from "@/lib/tracking/public";
+import { getRequestIp } from "@/lib/audit";
+import { countLookups, logLookup, HARD_CAP } from "@/lib/tracking/lookup-limit";
 
 export const dynamic = "force-dynamic"; // public, token-resolved — never cache
 
@@ -18,11 +20,24 @@ const MESSAGES: Record<string, { title: string; body: string }> = {
     title: "This tracking link is no longer active",
     body: "This link has been turned off. Ask United Dhillon Trucking Lines for a new one.",
   },
+  rate_limited: {
+    title: "Too many attempts",
+    body: "Please wait a few minutes and try again.",
+  },
 };
 
 export default async function PublicTrackPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+
+  // Direct URL visits share the lookup form's per-IP counters, so guessing
+  // tokens in the address bar can't bypass the rate limit (Epic 11 anti-abuse).
+  const ip = await getRequestIp();
+  if ((await countLookups(ip)) >= HARD_CAP) {
+    return <TrackingError reason="rate_limited" />;
+  }
+
   const resolved = await resolveTrackingToken(decodeURIComponent(token));
+  await logLookup(ip, resolved.ok);
 
   if (!resolved.ok) return <TrackingError reason={resolved.reason} />;
 
@@ -32,7 +47,7 @@ export default async function PublicTrackPage({ params }: { params: Promise<{ to
   return <PublicTrackingView data={data} />;
 }
 
-function TrackingError({ reason }: { reason: "not_found" | "expired" | "revoked" }) {
+function TrackingError({ reason }: { reason: "not_found" | "expired" | "revoked" | "rate_limited" }) {
   const m = MESSAGES[reason]!;
   return (
     <main className="flex min-h-screen items-center justify-center bg-[var(--color-bg)] px-6 py-12">

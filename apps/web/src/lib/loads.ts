@@ -108,8 +108,14 @@ export function validateLoadInput(
   if (!hasConsignee) return "Add at least one consignee (delivery) stop.";
   for (let i = 0; i < input.stops.length; i++) {
     const s = input.stops[i]!;
+    const label = s.type === "pickup" ? "Shipper" : "Consignee";
     if (!s.city || !s.city.trim()) {
-      return `${s.type === "pickup" ? "Shipper" : "Consignee"}: city is required.`;
+      return `${label}: city is required.`;
+    }
+    // Paste artifacts ("Brandon · MB · R7A 7S1 · CA") break geocoding silently —
+    // the map then has no destination and the live ETA never computes.
+    if (/[·|;\t\n]/.test(s.city) || /\d{5}|[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d/.test(s.city)) {
+      return `${label}: "${s.city.trim()}" doesn't look like a city — enter just the city name (province and postal code go in their own fields).`;
     }
     if (s.plannedFromAt && s.plannedToAt && s.plannedToAt < s.plannedFromAt) {
       return "A stop's planned window end is before its start.";

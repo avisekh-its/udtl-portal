@@ -6,7 +6,7 @@
  */
 import "leaflet/dist/leaflet.css";
 import type * as LeafletNS from "leaflet";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface RouteStopMarker {
   sequence: number;
@@ -62,6 +62,8 @@ export function RouteMap({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletNS.Map | null>(null);
+  const boundsRef = useRef<LeafletNS.LatLngBounds | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,8 +110,12 @@ export function RouteMap({
         pts.push([truck.lat, truck.lng]);
       }
 
-      if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 11 });
+      if (pts.length) {
+        boundsRef.current = L.latLngBounds(pts).pad(0.25);
+        map.fitBounds(boundsRef.current, { maxZoom: 11 });
+      }
       setTimeout(() => map.invalidateSize(), 0);
+      setReady(true);
     })();
     return () => {
       cancelled = true;
@@ -121,9 +127,26 @@ export function RouteMap({
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      className="h-[360px] w-full overflow-hidden rounded-xl border border-[var(--color-border)] bg-slate-100"
-    />
+    <div className="relative">
+      <div
+        ref={containerRef}
+        className="h-[360px] w-full overflow-hidden rounded-xl border border-[var(--color-border)] bg-slate-100"
+      />
+      {ready && (
+        <button
+          type="button"
+          onClick={() => {
+            if (mapRef.current && boundsRef.current) mapRef.current.fitBounds(boundsRef.current, { maxZoom: 11 });
+          }}
+          className="absolute right-3 top-3 z-[1000] inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-white/95 px-2.5 py-1.5 text-xs font-medium text-slate-600 shadow-md transition hover:bg-white hover:text-slate-800"
+          title="Fit the map back to the route"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+          </svg>
+          Re-center
+        </button>
+      )}
+    </div>
   );
 }

@@ -107,6 +107,12 @@ export default async function PortalOrderDetail({ params }: { params: Promise<{ 
     ? await supabase.from("notification_subscriptions").select("event, channel").eq("load_id", loadId)
     : { data: [] as { event: string; channel: string }[] };
   const subInitial = (subRows ?? []).map((s) => `${s.event}:${s.channel}`);
+  // Whether the viewer has a phone on file (drives the inline SMS phone field).
+  let viewerHasPhone = true;
+  if (showNotify && viewer) {
+    const { data: me } = await supabase.from("users").select("phone").eq("id", viewer.id).maybeSingle();
+    viewerHasPhone = !!me?.phone;
+  }
 
   const comments = viewer ? await fetchComments(loadId, viewer.id) : [];
   // Customers can't read tracking_devices (RLS), so derive "is it being tracked"
@@ -183,6 +189,11 @@ export default async function PortalOrderDetail({ params }: { params: Promise<{ 
             </div>
           </div>
           <RouteMap stops={routeStops} truck={truck} line={routeLine} />
+          {routeStops.length < stops.length && (
+            <p className="mt-3 text-xs text-slate-400">
+              Some stops can&apos;t be shown on the map yet — UDTL is completing the route details.
+            </p>
+          )}
         </div>
       )}
 
@@ -293,7 +304,7 @@ export default async function PortalOrderDetail({ params }: { params: Promise<{ 
       )}
 
       {/* Notification subscriptions (Epic 9) */}
-      {showNotify && <NotifySubscriptions loadId={loadId} initial={subInitial} />}
+      {showNotify && <NotifySubscriptions loadId={loadId} initial={subInitial} hasPhone={viewerHasPhone} />}
     </div>
   );
 }

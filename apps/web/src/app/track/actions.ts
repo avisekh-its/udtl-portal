@@ -1,20 +1,17 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createServiceClient } from "@/lib/supabase/server";
 import { getRequestIp } from "@/lib/audit";
 import { resolveTrackingToken } from "@/lib/tracking/public";
 import { issueChallenge, verifyCaptcha, type Challenge } from "@/lib/tracking/captcha";
+import { countLookups, logLookup, HARD_CAP, CAPTCHA_AFTER } from "@/lib/tracking/lookup-limit";
 
 /**
  * Public tracking-number lookup (Epic 11). Resolves a tracking number to its
  * public view, with per-IP rate limiting and a CAPTCHA gate that engages only
  * after repeated failed attempts — so tracking numbers can't be enumerated.
+ * The counters are shared with direct /track/<token> visits (lookup-limit).
  */
-
-const WINDOW_MIN = 15; // sliding window for both counters
-const HARD_CAP = 30; // attempts/window/IP before a hard "slow down"
-const CAPTCHA_AFTER = 4; // failed attempts/window/IP before a CAPTCHA is required
 
 export interface LookupState {
   error?: string;
@@ -22,26 +19,12 @@ export interface LookupState {
   challenge?: Challenge;
 }
 
-async function countLookups(ip: string | null, opts: { onlyFailed?: boolean }): Promise<number> {
-  const admin = createServiceClient();
-  const cutoff = new Date(Date.now() - WINDOW_MIN * 60_000).toISOString();
-  let q = admin
-    .from("tracking_lookups")
-    .select("id", { count: "exact", head: true })
-    .gte("created_at", cutoff);
-  q = ip ? q.eq("ip", ip) : q.is("ip", null);
-  if (opts.onlyFailed) q = q.eq("ok", false);
-  const { count } = await q;
-  return count ?? 0;
-}
-
 export async function lookupTrackingAction(_prev: LookupState, formData: FormData): Promise<LookupState> {
   const raw = String(formData.get("trackingNumber") ?? "").trim();
   const ip = await getRequestIp();
-  const admin = createServiceClient();
 
   // Hard rate limit — independent of success/failure.
-  if ((await countLookups(ip, {})) >= HARD_CAP) {
+  if ((await countLookups(ip)) >= HARD_CAP) {
     return { error: "Too many attempts. Please wait a few minutes and try again." };
   }
 
@@ -60,7 +43,7 @@ export async function lookupTrackingAction(_prev: LookupState, formData: FormDat
 
   const resolved = await resolveTrackingToken(raw);
   const ok = resolved.ok;
-  await admin.from("tracking_lookups").insert({ ip, ok });
+  await logLookup(ip, ok);
 
   if (ok) redirect(`/track/${encodeURIComponent(raw)}`);
 

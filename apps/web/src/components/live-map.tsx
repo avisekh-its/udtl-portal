@@ -94,6 +94,7 @@ export function LiveMap({
   const layerRef = useRef<LeafletNS.LayerGroup | null>(null);
   const routeLayerRef = useRef<LeafletNS.LayerGroup | null>(null);
   const markersRef = useRef<Map<string, LeafletNS.Marker>>(new Map());
+  const boundsRef = useRef<LeafletNS.LatLngBounds | null>(null);
   const [ready, setReady] = useState(false);
   const [view, setView] = useState<View>("orders");
   const [selected, setSelected] = useState<string | null>(null);
@@ -172,7 +173,10 @@ export function LiveMap({
       }
     }
 
-    if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 9 });
+    if (pts.length) {
+      boundsRef.current = L.latLngBounds(pts).pad(0.25);
+      map.fitBounds(boundsRef.current, { maxZoom: 9 });
+    }
 
     // A refresh rebuilds all markers and clears the route layer. If an order was
     // focused and still exists in this view, re-draw its route so the selection
@@ -196,6 +200,14 @@ export function LiveMap({
     if (m && map) {
       map.setView(m.getLatLng(), 9, { animate: true });
       m.openPopup();
+    }
+
+    // Emphasize the focused marker: dim the others in this view so it's obvious
+    // which truck belongs to the selected order.
+    for (const [k, marker] of markersRef.current) {
+      const isSelected = k === key;
+      marker.setOpacity(isSelected ? 1 : 0.35);
+      marker.setZIndexOffset(isSelected ? 1000 : 0);
     }
 
     // Overlay the order's route (pickup → stops → destination). Orders only.
@@ -245,9 +257,29 @@ export function LiveMap({
         pts.push([s.lat, s.lng]);
       }
       if (m) pts.push(m.getLatLng());
-      if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.3), { maxZoom: 10 });
+      if (pts.length) {
+        boundsRef.current = L.latLngBounds(pts).pad(0.3);
+        map.fitBounds(boundsRef.current, { maxZoom: 10 });
+      }
     } finally {
       setRouteLoading(false);
+    }
+  }
+
+  function clearSelection() {
+    setSelected(null);
+    setRouteMsg(null);
+    routeLayerRef.current?.clearLayers();
+    for (const [, marker] of markersRef.current) {
+      marker.setOpacity(1);
+      marker.setZIndexOffset(0);
+    }
+    const map = mapRef.current;
+    const L = LRef.current;
+    const pts = [...markersRef.current.values()].map((m) => m.getLatLng());
+    if (map && L && pts.length) {
+      boundsRef.current = L.latLngBounds(pts).pad(0.25);
+      map.fitBounds(boundsRef.current, { maxZoom: 9 });
     }
   }
 
@@ -350,9 +382,16 @@ export function LiveMap({
 
         <div className="mt-2 flex items-center justify-between border-t border-[var(--color-border)] pt-2 text-[11px] text-slate-400">
           <span>As of {asOf}</span>
-          <button type="button" onClick={() => router.refresh()} className="font-medium text-[var(--color-secondary)] hover:underline">
-            Refresh
-          </button>
+          <div className="flex items-center gap-3">
+            {selected && (
+              <button type="button" onClick={clearSelection} className="font-medium text-slate-500 hover:underline">
+                ✕ Clear selection
+              </button>
+            )}
+            <button type="button" onClick={() => router.refresh()} className="font-medium text-[var(--color-secondary)] hover:underline">
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 
@@ -372,6 +411,21 @@ export function LiveMap({
           <div className="absolute left-1/2 top-4 z-[1000] -translate-x-1/2 rounded-full border border-[var(--color-border)] bg-white/95 px-3 py-1.5 text-xs font-medium text-slate-500 shadow-md">
             {routeMsg}
           </div>
+        )}
+        {ready && (
+          <button
+            type="button"
+            onClick={() => {
+              if (mapRef.current && boundsRef.current) mapRef.current.fitBounds(boundsRef.current, { maxZoom: 10 });
+            }}
+            className="absolute right-3 top-3 z-[1000] inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-white/95 px-2.5 py-1.5 text-xs font-medium text-slate-600 shadow-md transition hover:bg-white hover:text-slate-800"
+            title="Fit the map back to the focused route / fleet"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+            </svg>
+            Re-center
+          </button>
         )}
       </div>
     </div>

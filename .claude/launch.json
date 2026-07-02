@@ -3,6 +3,7 @@
   "configurations": [
     {
       "name": "web",
+      "autoPort": true,
       "runtimeExecutable": "/Users/avisekhgurung/.nvm/versions/node/v22.22.2/bin/node",
       "runtimeArgs": [
         "/Users/avisekhgurung/Desktop/its-work/UDTL/node_modules/next/dist/bin/next",

@@ -238,6 +238,13 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
           <RouteMap stops={routeStops} truck={truck} line={routeLine} />
+          {routeStops.length < stops.length && (
+            <p className="mt-3 rounded-lg border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/8 px-3 py-2 text-xs text-[var(--color-warning)]">
+              {stops.length - routeStops.length} stop{stops.length - routeStops.length === 1 ? "" : "s"} couldn&apos;t be
+              placed on the map — check the stop&apos;s city/province in the order details below. Without a located
+              destination the live ETA can&apos;t be computed.
+            </p>
+          )}
         </div>
       )}
 

@@ -67,15 +67,29 @@ export async function AppShell({
   area: string;
   children: React.ReactNode;
 }) {
+  const supabase = await createServerClient();
+
+  // Customer users get their company name in the sidebar user block so it's
+  // always clear WHICH customer they're signed in as.
+  let orgName: string | null = null;
+  if (user.organizationId) {
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("name")
+      .eq("id", user.organizationId)
+      .maybeSingle();
+    orgName = (org?.name as string | null) ?? null;
+  }
+
   const shellUser: ShellUser = {
     name: user.name || user.email,
     email: user.email,
     roleLabel: ROLE_LABELS[user.role],
+    orgName,
     initials: (user.name || user.email).slice(0, 1).toUpperCase(),
   };
 
   // The viewer's in-app notifications (RLS scopes to their own rows).
-  const supabase = await createServerClient();
   const { data: rows } = await supabase
     .from("notification_log")
     .select("id, subject, body, created_at, read_at")

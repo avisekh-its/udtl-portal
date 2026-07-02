@@ -16,6 +16,7 @@ export interface UserRow {
   name: string | null;
   role: string;
   organization_id: string | null;
+  restricted?: boolean;
   active: boolean;
   credit_form_required?: boolean;
   credit_form_received?: boolean;
@@ -99,7 +100,7 @@ export function UsersTable({
       id: u.id,
       display: u.name || u.email,
       email: u.name ? u.email : "",
-      role_label: ROLE_LABELS[u.role] ?? u.role,
+      role_label: (ROLE_LABELS[u.role] ?? u.role) + (u.restricted ? " · Restricted" : ""),
       org_name: u.organization_id ? (orgNames[u.organization_id] ?? "—") : "UDTL",
       status: u.active ? "active" : awaitingCredit ? "awaiting_credit" : "inactive",
       active: u.active,

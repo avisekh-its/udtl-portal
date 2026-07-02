@@ -15,16 +15,23 @@ const key = (e: NotifyEvent, c: NotifyChannel) => `${e}:${c}`;
 export function NotifySubscriptions({
   loadId,
   initial,
+  hasPhone = true,
 }: {
   loadId: number;
   /** Existing subscriptions as "event:channel" keys. */
   initial: string[];
+  /** Whether the viewer's profile already has a phone number (for SMS). */
+  hasPhone?: boolean;
 }) {
   const [picked, setPicked] = useState<Set<string>>(new Set(initial));
   const [consent, setConsent] = useState(initial.length > 0); // already subscribed ⇒ consent given
+  const [phone, setPhone] = useState("");
+  const [phoneSaved, setPhoneSaved] = useState(hasPhone);
   const [pending, startTransition] = useTransition();
 
   const needsConsent = [...picked].some((k) => !k.endsWith(":in_app"));
+  const smsPicked = [...picked].some((k) => k.endsWith(":sms"));
+  const needsPhone = smsPicked && !phoneSaved;
 
   function toggle(e: NotifyEvent, c: NotifyChannel) {
     setPicked((prev) => {
@@ -42,9 +49,13 @@ export function NotifySubscriptions({
       return { event: event as NotifyEvent, channel: channel as NotifyChannel };
     });
     startTransition(async () => {
-      const res = await saveSubscriptionsAction(loadId, selected, consent);
-      if (res.error) toast.error(res.error);
-      else toast.success(selected.length ? "Notification preferences saved." : "Notifications turned off for this order.");
+      const res = await saveSubscriptionsAction(loadId, selected, consent, needsPhone ? phone : undefined);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      if (needsPhone && phone.trim()) setPhoneSaved(true);
+      toast.success(selected.length ? "Notification preferences saved." : "Notifications turned off for this order.");
     });
   }
 
@@ -84,6 +95,24 @@ export function NotifySubscriptions({
           </tbody>
         </table>
       </div>
+
+      {needsPhone && (
+        <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-slate-50 p-3">
+          <label htmlFor="sms-phone" className="block text-xs font-medium text-slate-600">
+            Mobile number for SMS updates
+          </label>
+          <input
+            id="sms-phone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            disabled={pending}
+            placeholder="204-555-0142"
+            className="mt-1.5 w-full max-w-xs rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[var(--color-secondary)] disabled:opacity-60"
+          />
+          <p className="mt-1 text-[11px] text-slate-400">Saved to your profile — we&apos;ll text this number.</p>
+        </div>
+      )}
 
       {needsConsent && (
         <label className="mt-4 flex items-start gap-2 text-xs text-slate-600">

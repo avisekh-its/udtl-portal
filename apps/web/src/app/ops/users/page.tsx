@@ -19,7 +19,7 @@ export default async function OpsUsersPage() {
   // Internal staff only — customer users live under their organization.
   const { data: users } = await supabase
     .from("users")
-    .select("id, email, name, role, organization_id, active, credit_form_required, credit_form_received")
+    .select("id, email, name, role, organization_id, restricted, active, credit_form_required, credit_form_received")
     .in("role", STAFF_ROLES)
     .order("email");
 

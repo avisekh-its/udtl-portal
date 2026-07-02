@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { inviteUserAction } from "@/app/ops/users/actions";
@@ -15,13 +16,18 @@ export function InviteForm({
   orgs,
   lockedOrgId,
   allowCreditForm = false,
+  accessPathTemplate,
 }: {
   roleOptions: RoleOption[];
   orgs: { id: string; name: string }[];
   lockedOrgId?: string | null;
   /** Show the "require credit form" option (UDTL staff onboarding only). */
   allowCreditForm?: boolean;
+  /** When set (e.g. "/portal/users/{id}"), a RESTRICTED invite jumps straight
+   *  to the new user's access page so the admin assigns their orders now. */
+  accessPathTemplate?: string;
 }) {
+  const router = useRouter();
   const [role, setRole] = useState(roleOptions[0]?.value ?? "");
   const [pending, startTransition] = useTransition();
 
@@ -32,14 +38,21 @@ export function InviteForm({
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
+    const wasRestricted = formData.get("restricted") === "on";
     startTransition(async () => {
       const result = await inviteUserAction(formData);
-      if (result.error) toast.error(result.error);
-      else {
-        toast.success(`Invite sent to ${formData.get("email")}.`);
-        form.reset();
-        setRole(roleOptions[0]?.value ?? "");
+      if (result.error) {
+        toast.error(result.error);
+        return;
       }
+      if (wasRestricted && result.id && accessPathTemplate) {
+        toast.success(`Invite sent to ${formData.get("email")} — now pick which orders they can see.`);
+        router.push(accessPathTemplate.replace("{id}", result.id));
+        return;
+      }
+      toast.success(`Invite sent to ${formData.get("email")}.`);
+      form.reset();
+      setRole(roleOptions[0]?.value ?? "");
     });
   }
 

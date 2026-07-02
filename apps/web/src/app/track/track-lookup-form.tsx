@@ -28,20 +28,31 @@ export function TrackLookupForm() {
       />
 
       {/* CAPTCHA — only appears after repeated failed attempts */}
-      {state.requireCaptcha && challenge?.kind === "math" && (
+      {state.requireCaptcha && challenge?.kind === "code" && (
         <div className="rounded-lg border border-[var(--color-border)] bg-slate-50 px-3 py-3">
-          <input type="hidden" name="captchaA" value={challenge.a} />
-          <input type="hidden" name="captchaB" value={challenge.b} />
           <input type="hidden" name="captchaSig" value={challenge.sig} />
-          <label className="block text-sm text-slate-700">
-            To continue, what is <strong>{challenge.a} + {challenge.b}</strong>?
-          </label>
-          <input
-            name="captchaAnswer"
-            inputMode="numeric"
-            autoComplete="off"
-            className="mt-2 w-28 rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-secondary)]"
-          />
+          <label className="block text-sm font-medium text-slate-700">Security check</label>
+          <p className="mt-0.5 text-xs text-slate-500">Type the characters shown in the image.</p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={challenge.imageUri}
+              alt="Verification code"
+              width={200}
+              height={64}
+              className="rounded-lg border border-[var(--color-border)] bg-white"
+            />
+            <input
+              name="captchaAnswer"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              maxLength={5}
+              placeholder="ABC12"
+              className="w-32 rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 font-mono text-sm uppercase tracking-widest outline-none focus:border-[var(--color-secondary)]"
+            />
+          </div>
+          <p className="mt-2 text-[11px] text-slate-400">Hard to read? Submit anyway — you&apos;ll get a fresh image.</p>
         </div>
       )}
       {state.requireCaptcha && challenge?.kind === "hcaptcha" && (

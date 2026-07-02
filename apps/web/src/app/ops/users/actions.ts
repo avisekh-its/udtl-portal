@@ -14,6 +14,8 @@ import { getRequestIp, writeAudit } from "@/lib/audit";
 export interface InviteResult {
   ok?: boolean;
   error?: string;
+  /** The invited user's id (for e.g. jumping straight to their access page). */
+  id?: string;
 }
 
 const ALL_ROLES: UserRole[] = [...STAFF_ROLES, ...CUSTOMER_ROLES];
@@ -115,7 +117,7 @@ export async function inviteUserAction(formData: FormData): Promise<InviteResult
 
   revalidatePath("/ops/users");
   revalidatePath("/portal/users");
-  return { ok: true };
+  return { ok: true, id: data.user.id };
 }
 
 /** Orgs available for the invite form's org picker (staff view). */

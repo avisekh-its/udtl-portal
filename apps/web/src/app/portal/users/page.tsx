@@ -16,7 +16,7 @@ export default async function PortalUsersPage() {
   // RLS scopes this to the admin's own organization.
   const { data: users } = await supabase
     .from("users")
-    .select("id, email, name, role, organization_id, active, credit_form_required, credit_form_received")
+    .select("id, email, name, role, organization_id, restricted, active, credit_form_required, credit_form_received")
     .order("email");
 
   return (
@@ -32,6 +32,7 @@ export default async function PortalUsersPage() {
         roleOptions={CUSTOMER_ROLE_OPTIONS}
         orgs={[]}
         lockedOrgId={actor.organizationId}
+        accessPathTemplate="/portal/users/{id}"
       />
 
       <UsersTable

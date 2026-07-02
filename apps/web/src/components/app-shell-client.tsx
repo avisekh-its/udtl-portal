@@ -29,6 +29,8 @@ export interface ShellUser {
   name: string;
   email: string;
   roleLabel: string;
+  /** Customer company name (null for UDTL staff). */
+  orgName?: string | null;
   initials: string;
 }
 
@@ -102,7 +104,7 @@ export function AppShellClient({
       {/* Brand */}
       <div className={`flex h-14 items-center border-b border-white/10 ${rail ? "justify-center px-0" : "gap-2.5 px-5"}`}>
         <BrandMark />
-        {!rail && <span className="text-[10px] uppercase tracking-[0.16em] text-white/40">{area}</span>}
+        {!rail && <span className="text-[10px] uppercase tracking-[0.16em] text-white/70">{area}</span>}
       </div>
 
       {/* Nav */}
@@ -119,13 +121,13 @@ export function AppShellClient({
               } ${
                 active
                   ? "bg-[var(--color-secondary)]/15 font-medium text-[var(--color-secondary)]"
-                  : "text-white/60 hover:bg-white/5 hover:text-white"
+                  : "text-white/85 hover:bg-white/5 hover:text-white"
               }`}
             >
               {active && (
                 <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[var(--color-secondary)]" aria-hidden />
               )}
-              <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-[var(--color-secondary)]" : "text-white/45 group-hover:text-white/80"}`} />
+              <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-[var(--color-secondary)]" : "text-white/70 group-hover:text-white"}`} />
               {!rail && <span className="truncate">{item.label}</span>}
               {rail && <span className={tooltip}>{item.label}</span>}
             </Link>
@@ -139,12 +141,12 @@ export function AppShellClient({
           <div className="flex flex-col items-center gap-2">
             <span className="group relative grid h-9 w-9 place-items-center rounded-full bg-white/10 text-xs font-semibold text-white">
               {user.initials}
-              <span className={tooltip}>{user.name}</span>
+              <span className={tooltip}>{user.name}{user.orgName ? ` · ${user.orgName}` : ""}</span>
             </span>
             <form action="/auth/signout" method="post">
               <button
                 type="submit"
-                className="group relative grid h-9 w-9 place-items-center rounded-lg text-white/50 transition hover:bg-white/10 hover:text-white"
+                className="group relative grid h-9 w-9 place-items-center rounded-lg text-white/70 transition hover:bg-white/10 hover:text-white"
                 aria-label="Sign out"
               >
                 <IconSignOut className="h-[18px] w-[18px]" />
@@ -159,12 +161,15 @@ export function AppShellClient({
             </span>
             <div className="min-w-0 flex-1 leading-tight">
               <div className="truncate text-sm font-medium text-white">{user.name}</div>
-              <div className="truncate text-[10px] uppercase tracking-wide text-white/40">{user.roleLabel}</div>
+              {user.orgName && (
+                <div className="truncate text-xs font-medium text-[var(--color-secondary)]">{user.orgName}</div>
+              )}
+              <div className="truncate text-[10px] uppercase tracking-wide text-white/65">{user.roleLabel}</div>
             </div>
             <form action="/auth/signout" method="post">
               <button
                 type="submit"
-                className="grid h-8 w-8 place-items-center rounded-lg text-white/50 transition hover:bg-white/10 hover:text-white"
+                className="grid h-8 w-8 place-items-center rounded-lg text-white/70 transition hover:bg-white/10 hover:text-white"
                 aria-label="Sign out"
                 title="Sign out"
               >
@@ -223,7 +228,7 @@ export function AppShellClient({
             <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="search"
-              placeholder="Search loads, customers…"
+              placeholder={area === "Portal" ? "Search your orders…" : "Search loads, customers…"}
               className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] py-1.5 pl-9 pr-3 text-sm outline-none transition focus:border-[var(--color-secondary)] focus:bg-white"
             />
           </div>
@@ -238,11 +243,13 @@ export function AppShellClient({
                 aria-label="Notifications"
                 aria-expanded={notifsOpen}
               >
-                <IconBell className="h-[18px] w-[18px]" />
+                <IconBell className={`h-[18px] w-[18px] ${badge > 0 ? "bell-ring text-slate-700" : ""}`} />
                 {badge > 0 && (
-                  <span className="absolute right-1.5 top-1.5 flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-secondary)] opacity-60" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-secondary)] ring-2 ring-white" />
+                  <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-secondary)] opacity-40" />
+                    <span className="badge-pop relative inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--color-secondary)] px-1 text-[10px] font-bold leading-none text-white shadow-sm ring-2 ring-white">
+                      {badge > 9 ? "9+" : badge}
+                    </span>
                   </span>
                 )}
               </button>
